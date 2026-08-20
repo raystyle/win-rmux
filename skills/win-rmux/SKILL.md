@@ -1,6 +1,7 @@
 ---
 name: win-rmux
 description: 在 Windows/pwsh 用 RMUX 新开终端窗口，把多个 agent（codex / kimi / claude code）放到同一终端的不同窗格里运行与驱动：新终端 + 多窗格布局（上 2 下 1）、send-keys/capture-pane、环境清理（NO_COLOR/TERM/PATH）、agent 状态判断原语、关闭退出。涉及 rmux/tmux 分屏或驱动调试 codex/kimi/claude 时使用。
+compatibility: Windows 10/11 + PowerShell 7 + rmux（PATH 内）+ Windows Terminal（wt）
 ---
 
 # win-rmux：新终端 + 同终端多窗格多 agent 操作
@@ -195,5 +196,5 @@ rmux wait-pane -t dev --quiet --timeout 30s
 
 ## 详细踩坑
 
-完整实测记录（daemon 进程模型、NO_COLOR 根源、ConPTY 备屏限制、关闭退出验证等）见
-`docs\research\rmux-usage.md`，三端（codex / kimi / claude）skill 与该文档同步维护。
+完整实测记录（daemon 进程模型、NO_COLOR 根源、ConPTY 备屏限制、三组原语、关闭退出验证等）见
+`references/rmux-usage.md`，三端（codex / kimi / claude）skill 与该文档同步维护。
