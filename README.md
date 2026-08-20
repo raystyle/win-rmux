@@ -6,8 +6,9 @@
 
 仓库源文件：
 
-- `AGENTS.md`：Codex / Kimi 的 skill 内容（SKILL.md 格式）
-- `CLAUDE.md`：Claude Code 的 skill 内容（SKILL.md 格式）
+- `skills/win-rmux/SKILL.md`：skill 本体（三端通用 SKILL.md 格式）
+- `AGENTS.md`：Codex / Kimi 的 skill 内容（与本体同源）
+- `CLAUDE.md`：Claude Code 的 skill 内容（与本体同源）
 
 ## 全局安装（gh 命令，三端）
 
@@ -17,24 +18,24 @@
 
 ```bash
 mkdir -p ~/.codex/skills/win-rmux
-gh api repos/raystyle/win-rmux/contents/AGENTS.md -H "Accept: application/vnd.github.raw" > ~/.codex/skills/win-rmux/SKILL.md
+gh api repos/raystyle/win-rmux/contents/skills/win-rmux/SKILL.md -H "Accept: application/vnd.github.raw" > ~/.codex/skills/win-rmux/SKILL.md
 ```
 
 ### Claude Code
 
 ```bash
 mkdir -p ~/.claude/skills/win-rmux
-gh api repos/raystyle/win-rmux/contents/CLAUDE.md -H "Accept: application/vnd.github.raw" > ~/.claude/skills/win-rmux/SKILL.md
+gh api repos/raystyle/win-rmux/contents/skills/win-rmux/SKILL.md -H "Accept: application/vnd.github.raw" > ~/.claude/skills/win-rmux/SKILL.md
 ```
 
 ### Kimi Code
 
 ```bash
 mkdir -p ~/.kimi-code/skills/win-rmux
-gh api repos/raystyle/win-rmux/contents/AGENTS.md -H "Accept: application/vnd.github.raw" > ~/.kimi-code/skills/win-rmux/SKILL.md
+gh api repos/raystyle/win-rmux/contents/skills/win-rmux/SKILL.md -H "Accept: application/vnd.github.raw" > ~/.kimi-code/skills/win-rmux/SKILL.md
 ```
 
-安装后重启对应 agent 生效。Kimi 复用 `AGENTS.md`（三端同为 SKILL.md 格式）。
+安装后重启对应 agent 生效。三端统一从 `skills/win-rmux/SKILL.md` 安装（同为 SKILL.md 格式）。
 
 ## 说明
 
