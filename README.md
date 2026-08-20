@@ -4,28 +4,39 @@
 的不同窗格里运行与驱动：新终端 + 多窗格布局（上 2 下 1）、send-keys / capture-pane、
 环境清理（NO_COLOR / TERM / PATH）、agent 状态判断原语、关闭退出。
 
-## 全局安装（三端）
+仓库源文件：
+
+- `AGENTS.md`：Codex / Kimi 的 skill 内容（SKILL.md 格式）
+- `CLAUDE.md`：Claude Code 的 skill 内容（SKILL.md 格式）
+
+## 全局安装（gh 命令，三端）
 
 前置：已安装 `gh` 并登录。
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/raystyle/win-rmux/main/install.ps1 | iex"
+### Codex
+
+```bash
+mkdir -p ~/.codex/skills/win-rmux
+gh api repos/raystyle/win-rmux/contents/AGENTS.md -H "Accept: application/vnd.github.raw" > ~/.codex/skills/win-rmux/SKILL.md
 ```
 
-或本地安装：
+### Claude Code
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File install.ps1
-# 覆盖: pwsh -NoProfile -ExecutionPolicy Bypass -File install.ps1 -Force
+```bash
+mkdir -p ~/.claude/skills/win-rmux
+gh api repos/raystyle/win-rmux/contents/CLAUDE.md -H "Accept: application/vnd.github.raw" > ~/.claude/skills/win-rmux/SKILL.md
 ```
 
-安装到：
+### Kimi Code
 
-- Codex：`~/.codex/skills/win-rmux/SKILL.md`
-- Claude Code：`~/.claude/skills/win-rmux/SKILL.md`
-- Kimi Code：`~/.kimi-code/skills/win-rmux/SKILL.md`
+```bash
+mkdir -p ~/.kimi-code/skills/win-rmux
+gh api repos/raystyle/win-rmux/contents/AGENTS.md -H "Accept: application/vnd.github.raw" > ~/.kimi-code/skills/win-rmux/SKILL.md
+```
+
+安装后重启对应 agent 生效。Kimi 复用 `AGENTS.md`（三端同为 SKILL.md 格式）。
 
 ## 说明
 
 - skill 名 `win-rmux`，底层命令仍是 `rmux`（Windows/pwsh 的 tmux 兼容多路复用器）。
-- 完整实测踩坑见 SKILL.md 与配套研究文档。
+- 完整实测踩坑见 `AGENTS.md` / `CLAUDE.md`。
