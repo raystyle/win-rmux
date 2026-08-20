@@ -22,11 +22,11 @@ function Test-Installed([string]$Content) {
   return $Content -and ($Content.Contains($Marker))
 }
 
-function Add-JsonHook([hashtable]$Root, [string]$Event, [string]$Command, [string]$Matcher = '') {
+function Add-JsonHook([hashtable]$Root, [string]$Event, [string]$Command, [string]$Matcher = '', [int]$Timeout = 10) {
   if (-not $Root.ContainsKey('hooks')) { $Root['hooks'] = @{} }
   $hooks = $Root['hooks']
   if (-not $hooks.ContainsKey($Event)) { $hooks[$Event] = @() }
-  $entry = [ordered]@{ hooks = @([ordered]@{ type = 'command'; command = $Command; timeout = 10 }) }
+  $entry = [ordered]@{ hooks = @([ordered]@{ type = 'command'; command = $Command; timeout = $Timeout }) }
   if ($Matcher) { $entry['matcher'] = $Matcher }
   $hooks[$Event] = @($hooks[$Event]) + $entry
 }
@@ -37,7 +37,11 @@ function Install-JsonHooks([string]$Path, [string]$Label, [string[]]$Events, [st
   if (Test-Installed $content) { Write-Host '  already installed'; return }
   Backup $Path
   $root = $content | ConvertFrom-Json -AsHashtable
-  foreach ($ev in $Events) { Add-JsonHook $root $ev $HookCmd $Matcher }
+  foreach ($ev in $Events) {
+    # Codex 对 SessionEnd 钩子有 3s 硬上限（超了会被钳制并告警），其余事件保持 10s。
+    $timeout = if ($ev -eq 'SessionEnd') { 3 } else { 10 }
+    Add-JsonHook $root $ev $HookCmd $Matcher $timeout
+  }
   $json = $root | ConvertTo-Json -Depth 20
   [System.IO.File]::WriteAllText($Path, $json, [System.Text.UTF8Encoding]::new($false))
   Write-Host '  installed'
