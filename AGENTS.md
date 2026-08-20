@@ -40,4 +40,4 @@ win-rmux 从 ohmypwsh 项目的 rmux skill 迁移独立而来。关键踩坑已�
 - [x] 三席上 2 下 1 实测回归（前台三 agent review）
 - [x] 三端互相 review（codex/kimi/claude）
 - [x] agent 状态 hook 落地 + 三端 working→idle 回归
-- [ ] 调试稳定后：三端 gh skill 安装回归
+- [x] 调试稳定后：三端 gh skill 安装回归
