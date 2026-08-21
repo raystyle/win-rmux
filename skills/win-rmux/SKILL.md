@@ -6,6 +6,12 @@ compatibility: Windows 10/11 + PowerShell 7 + rmux（PATH 内）+ Windows Termin
 
 # win-rmux：一个执行单元里的多 agent 远程驱动
 
+## 环境约束（全程）
+
+- **仅使用 pwsh（PowerShell 7）**：所有命令、脚本、hook、wt 内启动一律用 `pwsh`；
+  **禁用 `powershell.exe`（5.1）与 cmd**。rmux 会话默认 shell 设为
+  `C:\Program Files\PowerShell\7\pwsh.exe`（见 `references/options.md`）。
+
 核心模型：
 
 - **执行单元（Execution Unit）** = 一个 rmux 会话，承载 N 个 agent 各占一个 pane；默认 3 个 codex/kimi/claude，上 2 下 1。

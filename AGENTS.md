@@ -1,5 +1,11 @@
 # win-rmux 开发协作规则（Codex）
 
+## 环境约束（全程）
+
+- **仅使用 pwsh（PowerShell 7）**：开发、调试、review、脚本调用一律用 `pwsh`；
+  禁用 `powershell.exe`（5.1）与 cmd（rmux 会话默认 shell 为
+  `C:\Program Files\PowerShell\7\pwsh.exe`）。
+
 ## 仓库结构
 
 - `skills/win-rmux/SKILL.md`：skill 本体（agentskills 标准，frontmatter + 操作原语）
