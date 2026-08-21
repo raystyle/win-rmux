@@ -170,7 +170,7 @@ rmux capture-pane -t claude -p
   `wt ... -d <目录>`，rmux 建会话/分窗格要显式 `-c <目录>`（Claude Code review 实测确认）。
 - **会话复用守卫**：`rmux has-session -t dev` 存在时先 `kill-session -t dev`，否则
   `new-session`（无 -A）报错后 `split-window` 会静默追加 dev:0.2，破坏固定窗格索引。
-- **旧 daemon 污染守卫**：daemon 若由含 NO_COLOR 的环境启动，新窗格颜色仍会坏--
+- **旧 daemon 污染守卫**：daemon 若由含 NO_COLOR 的环境启动，新窗格颜色仍会坏；
   `Get-Process rmux` 有进程且 `list-sessions` 无保留会话时先 `kill-server` 再走干净环境。
 - **send-keys 提交原语**：发送后 capture 验证输入行已清空/出现处理指示，未提交补发 `Enter`；
   长 prompt 分「发文本 -> 检查 -> Enter」避免吞键（Claude Code review 时实测踩到）。

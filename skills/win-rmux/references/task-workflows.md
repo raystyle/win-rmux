@@ -63,9 +63,9 @@ Reply DONE <你名> when written.
 ```
 
 - 涉及 GitHub 代码研究：明确指示用 `gh search code "<kw>" --repo <owner/repo>` / `gh api
-  repos/<owner>/<repo>/...`。**前置守卫不检查 gh**--研究开始前先自检
+  repos/<owner>/<repo>/...`。**前置守卫不检查 gh**：研究开始前先自检
   `Get-Command gh`（缺则提示装 gh 或跳过 GitHub 子任务），否则 gh 子任务直接失败。
-- 长 prompt：不要 send-keys 一条超长--写入 `.rmux_tasks/<task-id>/prompt.md`（或研究专属
+- 长 prompt：不要 send-keys 一条超长：写入 `.rmux_tasks/<task-id>/prompt.md`（或研究专属
   路径），`drive` 一个短指令让它 Read 该文件（见 troubleshooting「drive 相关」长 prompt 截断）。
 - 单 agent 研究类只看一个 pane 产物即够；多子题分工时按 pane 索引对应产物。
 
@@ -108,7 +108,7 @@ Reply DONE <你名> when written.
 > 猜（否则三 agent 写同一文件互相覆盖）。模板尽量 ASCII（占位用 `<topic>/<agent>/<issue>`），
 > send-keys 的短指令必须纯 ASCII--中长模板本身写文件让 agent Read。
 
-首轮（指向给定 diff/文件）--写到 `.rmux_tasks/<task-id>/review/prompt.md`：
+首轮（指向给定 diff/文件）：写到 `.rmux_tasks/<task-id>/review/prompt.md`：
 
 ```text
 REVIEW <scope> (read-only; do NOT modify files).
@@ -121,7 +121,7 @@ Do NOT read/open secret/credential files (.secrets, *key*.ps1, API-key/token);
 focus code structure/logic/consistency.
 ```
 
-复核（上轮修复后）--写到 `.rmux_tasks/<task-id>/recheck/<round>/r<N>-prompt.md`：
+复核（上轮修复后）：写到 `.rmux_tasks/<task-id>/recheck/<round>/r<N>-prompt.md`：
 
 ```text
 RECHeck <scope> after apply of my fixes (read-only).
@@ -152,7 +152,7 @@ Skip secret/credential files.
   指令仍走 drive 严格流程（发->Enter->capture 验证提交）。
 - **agent 读密钥/guard 源码会被自身策略或 secret-guard 反拦**：prompt 恒附 "skip
   secret/credential files"（见 troubleshooting「agent 行为」）。
-- **不关单元**：循环中不要 `kill-session`--那会丢所有 agent 上下文；只有终态达成(一致的
+- **不关单元**：循环中不要 `kill-session`：那会丢所有 agent 上下文；只有终态达成(一致的
   无需再改)才 close。
 
 ## 3. 产物目录约定（标准，严格）
