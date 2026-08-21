@@ -9,7 +9,7 @@
 ```text
 win-rmux/
   AGENTS.md         开发协作规则（面向 Codex / Kimi 使用者：环境约束、调试、测试回归验收）
-  CLAUDE.md         开发协作规则（面向 Claude Code 使用者：同上）
+  CLAUDE.md         一行 `@AGENTS.md` 桥接（权威源为 AGENTS.md，不重复维护）
   LICENSE           MIT 许可证
   README.md         本文件：skill 简介 + 三端(gh skill)安装 / 更新 / 版本发布说明
   skills/
@@ -127,4 +127,4 @@ gh skill publish --tag v0.2.0
 ## 说明
 
 - skill 名 `win-rmux`，底层命令仍是 `rmux`（Windows/pwsh 的 tmux 兼容多路复用器）。
-- 完整实测踩坑见 `AGENTS.md` / `CLAUDE.md`。
+- 完整实测踩坑见 `AGENTS.md`（权威源；`CLAUDE.md` 仅一行 `@AGENTS.md` 桥接）。
