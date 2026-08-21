@@ -43,6 +43,7 @@ function Add-JsonHook([hashtable]$Root, [string]$Event, [string]$Command, [strin
 
 function Remove-KimiHookBlocks([string]$Content, [string]$EscCmd) {
   # 按 [[hooks]] 块切分，删除「含 marker 但命令非当前路径」的块（迁移/重装时清旧块）。
+  # 块在任意下一个 TOML 表头（[ 或 [[ 开头）处收尾，避免把块后夹的单括号段一并吞删。
   $lines = $Content -split "`r?`n"
   $result = New-Object System.Collections.Generic.List[string]
   $removed = 0
@@ -51,7 +52,7 @@ function Remove-KimiHookBlocks([string]$Content, [string]$EscCmd) {
       $block = New-Object System.Collections.Generic.List[string]
       $block.Add($lines[$i])
       $j = $i + 1
-      while ($j -lt $lines.Count -and $lines[$j] -notmatch '^\s*\[\[hooks\]\]\s*$') {
+      while ($j -lt $lines.Count -and $lines[$j] -notmatch '^\s*\[') {
         $block.Add($lines[$j]); $j++
       }
       $blockText = $block -join "`n"
@@ -67,14 +68,14 @@ function Remove-KimiHookBlocks([string]$Content, [string]$EscCmd) {
 
 function Install-JsonHooks([string]$Path, [string]$Label, [string[]]$Events, [string]$Matcher = '') {
   Write-Host "[$Label] $Path"
-  $content = if (Test-Path $Path) { Get-Content -Raw $Path } else { '{}' }
+  $content = if (Test-Path -LiteralPath $Path) { Get-Content -LiteralPath $Path -Raw } else { '{}' }
   if (-not $content -or -not $content.Trim()) { $content = '{}' }   # 空/空白文件兜底
   try {
     $root = $content | ConvertFrom-Json -AsHashtable
   } catch {
-    Write-Warning "  ${Label}: 无效 JSON，从 {} 重建（备份原文件）"
-    Backup $Path
-    $root = @{}
+    # 无效 JSON：告警并跳过（不改动该文件），避免从 {} 重建覆盖用户的其他配置
+    Write-Warning "  ${Label}: $Path 不是有效 JSON，已跳过（未改动；请手工修复后重跑）"
+    return
   }
   if (-not $root.ContainsKey('hooks')) { $root['hooks'] = @{} }
   $changed = $false
@@ -97,7 +98,7 @@ function Install-Kimi {
   $dir  = Split-Path $path -Parent
   if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   Write-Host "[kimi] $path"
-  $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
+  $content = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
   $esc = $HookCmd.Replace('\','\\').Replace('"','\"')
   # 无论是否已装，先清理「含 marker 但命令非当前路径」的残留块（迁移/重复场景）
   $r = Remove-KimiHookBlocks $content $esc
@@ -127,7 +128,7 @@ function Enable-CodexHooksFeature {
   $dir  = Split-Path $path -Parent
   if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   $marker = '# win-rmux: enable agent-state hooks'
-  $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
+  $content = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
   # 幂等判断用「行首 hooks 键」正则而非子串 Contains：避免注释(行首#)里的 hooks 误判、
   # 避免 hooks=false 时插入重复键。注意：该正则是全文范围（非严格 [features] 表级），
   # 若其他表下恰好有 hooks 键也会命中——codex config 实际无此键，现实风险低。

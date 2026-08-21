@@ -41,12 +41,15 @@ $agents = @(
 # 指定本 skill 安装目录（脚本内联执行时 $PSScriptRoot 为空，必须显式给出）。
 # 例：C:\Users\<user>\.claude\skills\win-rmux（Claude）、~\.codex\skills\win-rmux（Codex）等
 $SkillDir = 'C:\Users\ray\.claude\skills\win-rmux'   # ← 按本机安装路径填
+$env:RMUX_DISABLE_TINY_CLI = '1'   # 探针/操作统一走 full helper，规避 tiny CLI 误报（防止空报误触发 kill-server）
 if (Get-Process rmux -ErrorAction SilentlyContinue) {
   if (-not (rmux list-sessions 2>$null)) { rmux kill-server }   # 污染 daemon 守卫
 }
 Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 $env:TERM = 'xterm-256color'; $env:COLORTERM = 'truecolor'
-$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+# PATH 以 Machine+User 为准（去宿主污染），进程独有条目（本会话新装/临时加的）追加保留不丢弃
+$mu = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+$env:Path = (($mu -split ';') + ($env:Path -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
 # User 环境变量同步（宿主常不加载 User env，agent 会缺 DEEPSEEK_API_KEY 等 API key；
 # 必须 dot-source，子进程调用无效）
 . "$SkillDir/scripts/refresh-user-env.ps1"
@@ -121,7 +124,7 @@ rmux send-keys -t $p -- Enter
 
 ```powershell
 rmux capture-pane -t $p -p        # codex(--no-alt-screen) 或非 TUI 可读
-rmux stream-pane -t $p --lines    # 流式
+rmux stream-pane -t $p --lines    # 流式；持续阻塞输出（实测不自行退出），勿前台裸跑——配超时或放后台/job
 rmux pane-snapshot -t $p          # 快照
 ```
 
@@ -134,6 +137,7 @@ review 结论等**超过一屏的产物会永久丢**。可靠做法是让 agent
 
 ```powershell
 # 1. 指示 agent 把产物写到工作区某个路径（prompt 用 ASCII；文件用绝对路径）
+$targetName = 'kimi'   # 目标 agent 名（须与 $p 对应；下面诊断按它读 AGENT_STATE_<name>）
 $writePrompt = 'Write your full review to D:\win-rmux\reviews\review-kimi.md (markdown). Set-Content -Path D:\win-rmux\reviews\review-kimi.md -Value (content). Reply "WRITTEN" when done.'
 rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- $writePrompt
 rmux send-keys -t $p -- Enter
@@ -141,7 +145,7 @@ rmux send-keys -t $p -- Enter
 $deadline = (Get-Date).AddMinutes(3)
 while (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md') -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 15 }
 if (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) {
-  Write-Warning "文件超时未出现：capture=$((rmux capture-pane -t $p -p 2>$null) -join ' ') state=$(rmux show-environment -t $unit AGENT_STATE_kimi 2>$null)"
+  Write-Warning "文件超时未出现：capture=$((rmux capture-pane -t $p -p 2>$null) -join ' ') state=$(rmux show-environment -t $unit "AGENT_STATE_$targetName" 2>$null)"
 }
 # 3. 直接读文件内容（不经 rmux，产物完整持久）
 ```
