@@ -98,11 +98,11 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 rmux list-sessions -F "#{session_name} attached=#{session_attached}"
 rmux list-clients
 
-# 2. 弹新 wt 窗口 attach（-d 强制 detach 残留客户端，幂等；Minimized 不抢主窗口焦点）
+# 2. 弹新 wt 窗口 attach（-d 强制 detach 残留客户端，幂等；前台可见，不加 Minimized）
 $wt = (Get-Command wt.exe).Source
 $wd = (Get-Location).Path
 $wtArgs = "-w new --title `"dev`" -d `"$wd`" pwsh -NoProfile -Command `"rmux attach-session -d -t dev`""
-Start-Process -FilePath $wt -ArgumentList $wtArgs -WindowStyle Minimized
+Start-Process -FilePath $wt -ArgumentList $wtArgs
 
 # 3. 验证：attached=dev、term=xterm-256color（有色彩）
 Start-Sleep -Seconds 2
@@ -152,11 +152,11 @@ $env:TERM = 'xterm-256color'
 $env:COLORTERM = 'truecolor'
 $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
 
-# 1. 弹独立 wt 窗口（-w new 强制新窗口；-WindowStyle Minimized 最小化启动不抢 Codex 焦点；
-#    wt 路径动态解析，勿硬编码 WindowsApps）
+# 1. 弹独立 wt 窗口（-w new 强制新窗口；前台可见，不加 Minimized——new-session -A 的窗口
+#    就是给用户实时看 claude 的前台窗；wt 路径动态解析，勿硬编码 WindowsApps）
 $wt = (Get-Command wt.exe).Source
 $wtArgs = '-w new --title "Claude Code" -d D:\ohmypwsh pwsh -NoProfile -Command "rmux new-session -A -s claude -c D:\ohmypwsh claude"'
-Start-Process -FilePath $wt -ArgumentList $wtArgs -WindowStyle Minimized
+Start-Process -FilePath $wt -ArgumentList $wtArgs
 
 # 2. 从这边操作（同窗格套路）
 rmux list-clients                          # 检查 [宽x高 term] 标记：dumb=无色彩
@@ -272,7 +272,7 @@ $argv = @('split-window','-f','-v','-d','-t',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=
 ```powershell
 $wd = (Get-Location).Path   # host 侧 $wd 与 launcher 内是两份独立副本，两处都要给
 $wtArgs = "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -ExecutionPolicy Bypass -File `"<launcher.ps1绝对路径>`" -unit `"$unit`""
-Start-Process (Get-Command wt.exe).Source -ArgumentList $wtArgs -WindowStyle Minimized
+Start-Process (Get-Command wt.exe).Source -ArgumentList $wtArgs -WindowStyle Minimized   # launcher 过程窗（建会话即退）可最小化；前台看的是之后 recover attach
 Start-Sleep -Seconds 10
 rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane_current_command}"
 ```

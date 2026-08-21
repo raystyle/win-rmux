@@ -21,7 +21,7 @@ compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
 核心模型：
 
 - **执行单元（Execution Unit）** = 一个 rmux 会话，承载 N 个 agent 各占一个 pane；默认 3 个 codex/kimi/claude，上 2 下 1。
-- **两种模式**：`Visible=$true`（默认，前台弹 wt 可见）；`Visible=$false`（后台 headless 纯 rmux 驱动）。
+- **两种模式（默认必须是前台）**：`Visible=$true`（**默认**，前台弹 wt 可见，用户能实时看到三 agent 执行）；`Visible=$false` 后台 headless 纯 rmux 驱动——**仅在用户明确要求后台/无人值守时才用**，绝不当默认。
 - **六原语**：launch / locate / drive / observe / judge / recover-close。
 - 寻址按 agent 名，不硬编码 pane 索引；未来加 pi/grok 只改 `$agents`。
 
@@ -42,7 +42,7 @@ compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
 
 ```powershell
 $unit    = 'execution-unit'    # 执行单元名，**并行/多任务时请改成唯一名**（如 'res'/'review' 或按 task-id）；同名会话会被 launcher 复用/冲突
-$Visible = $true     # 前台；$false = 后台
+$Visible = $true     # 默认必须前台（可见 wt）；$false 只在用户明确要求后台时才设
 
 $agents = @(
   @{ name = 'codex';  cmd = 'codex';  args = @('--dangerously-bypass-approvals-and-sandbox', '--dangerously-bypass-hook-trust', '--no-alt-screen') }
@@ -134,6 +134,8 @@ if (@(rmux list-sessions -F '#{session_name}' 2>$null | Where-Object { $_ }) -co
 
 ```powershell
 # 1. 弹 wt（宿主在 job object 内必须走这步）跑 launcher：new-session + split-window -h + split-window -f -v
+#    注意：这个 wt 只是「跑 launcher 脚本即退」的过程窗，可 Minimized 不抢焦点；
+#    给用户看的前台窗口是后来 recover 的 attach（见 recover，必须可见、不加 Minimized）。
 Start-Process (Get-Command wt.exe).Source -ArgumentList "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -File `"<launcher.ps1绝对路径>`" -unit `"$unit`"" -WindowStyle Minimized
 Start-Sleep -Seconds 10
 rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane_current_command}"   # locate 复核
@@ -266,7 +268,7 @@ if ($after - $before -gt 0.5) { 'submitted' }
 # recover：前台重新弹 wt attach（关 wt 只是 detach，daemon/会话仍在）
 $wd = (Get-Location).Path          # recover 常在同一会话继续，$wd 可能未定义；显式补上
 $wtArgs = "-w new --title `"$unit`" -d `"$wd`" pwsh -NoProfile -Command `"rmux attach-session -d -t $unit`""
-Start-Process -FilePath (Get-Command wt.exe).Source -ArgumentList $wtArgs -WindowStyle Minimized
+Start-Process -FilePath (Get-Command wt.exe).Source -ArgumentList $wtArgs   # 前台可见，不加 -WindowStyle Minimized
 # 不 new-session -A、不 kill-server
 
 # close：默认只关**本执行单元**（scoped），不要顺手杀 daemon 上别人/其它任务的会话
