@@ -33,6 +33,9 @@ rmux show-environment -t $unit AGENT_STATE_codex   # -> AGENT_STATE_codex=workin
 
 - codex hook 需要信任；headless 下必须加 `--dangerously-bypass-hook-trust`，否则静默跳过。
 - claude 的 JSON hook 条目需要 `matcher`（`Stop`/`PreToolUse` 等用 `matcher: "*"`），否则可能不触发。
+- codex 的 `Stop` hook 实测不触发：`UserPromptSubmit→working` 正常、`Stop→idle` 不写
+  （2026-08-21，kimi/claude 正常），模型调用失败/异常中断后状态会卡 `working`。
+  judge codex 用进程 CPU 回退，或手动 `rmux set-environment -t $unit AGENT_STATE_codex idle` 清理。
 
 ## 一次性安装（每 agent）
 

@@ -38,7 +38,10 @@ if (Get-Process rmux -ErrorAction SilentlyContinue) {
 Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 $env:TERM = 'xterm-256color'; $env:COLORTERM = 'truecolor'
 $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
-# agent 状态 hook 检测/安装（幂等；首次会写 codex/kimi/claude 的 hook 配置）
+# User 环境变量同步（宿主常不加载 User env，agent 会缺 DEEPSEEK_API_KEY 等 API key；
+# 必须 dot-source，子进程调用无效）
+. "$PSScriptRoot/scripts/refresh-user-env.ps1"
+# agent 状态 hook 检测/安装（幂等 + 路径感知；首次会写 codex/kimi/claude 的 hook 配置）
 pwsh -NoProfile -File "$PSScriptRoot/scripts/install-agent-hooks.ps1"
 ```
 
@@ -87,10 +90,12 @@ function Get-AgentPane([string]$name) {
   "${unit}:0.$i"
 }
 $p = Get-AgentPane 'codex'
-rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -- '<ascii-prompt>' Enter
+# 先发文本、再单独发 Enter（实测 Enter 与文本同发会被吞，不提交）
+rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -- '<ascii-prompt>'
+rmux send-keys -t $p -- Enter
 ```
 
-- 回车只有 `Enter`；`C-m` 是字面量 `^M`。
+- 回车只有 `Enter`；`C-m` 是字面量 `^M`。**Enter 必须单独一次 send-keys 发**（与文本同发实测不提交，codex/kimi 均踩到）。
 - 中文乱码：prompt 用 ASCII；含空格用 `-l` 字面量或拆 token + `Space`。
 - 等待：`--wait quiet|--wait-text|--wait-next-text|--wait-visible-text|--wait-pane-exit` + `--stable-for` + `--timeout`。
 
@@ -154,3 +159,21 @@ rmux kill-server               # 全关（杀 daemon 及所有 agent）
 
 完整实测（daemon 进程模型、NO_COLOR 根源、ConPTY 备屏、关闭退出等）见
 `references/rmux-usage.md`；命令/扩展/格式/环境/键位/选项全量见 `references/README.md`。
+
+2026-08-21 实测新增：
+
+- **宿主 job object 阻止 rmux daemon**：CI/agent 宿主把命令包在 job object 里时，
+  `new-session -d` 启动独立 daemon 报 `os error 5`（`Windows refused to launch an
+  independent RMUX daemon`）。解法：把整套 launch 命令放进 **wt 窗口内执行**（wt 是
+  UWP 应用，进程树脱离 job），daemon 由 wt 内的 pwsh 启动；之后 client 命令
+  （send-keys / capture-pane / list-panes 等）在宿主侧照常可用。
+- **首次进入新目录的信任提示**：codex/kimi 对新目录会弹「Do you trust this
+  directory?」交互确认，yolo 参数不绕过。解法：capture 检测到提示后 send-keys 选信任
+  （codex `1` + Enter；kimi 高亮项直接 Enter）；codex 可在 config.toml
+  `[projects.'<path>'] trust_level = "trusted"` 预置永久信任。
+- **codex 的 Stop hook 不上报 idle**：`UserPromptSubmit→working` 正常，`Stop→idle`
+  实测不触发（kimi/claude 正常），异常中断后状态会卡 `working`。judge codex 用进程
+  CPU 回退，或手动 `rmux set-environment -t $unit AGENT_STATE_codex idle` 清理。
+- **respawn-pane 有崩溃风险**：`respawn-pane -k` 重启 codex 实测会崩溃退出，pane 被
+  移除后布局自动重排（如 kimi 顶到全宽）。恢复：在现存 pane 左侧
+  `split-window -h -b` 插回 agent 还原上 2 下 1。
