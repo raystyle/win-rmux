@@ -40,6 +40,29 @@ win-rmux 从 ohmypwsh 项目的 rmux skill 迁移独立而来。关键踩坑已�
    用 `gh skill list --agent ... --scope user` 验证可见，重启对应 agent 后生效。
    （`kimi-cli` 用户级默认落在 `~/.config/agents/skills`，非 `~/.kimi-code/skills`。）
 
+## 版本发布
+
+> 6 步回归（尤其 5/6）通过后再发版。版本由 git tag / GitHub release 管理（skill 无独立
+> version 字段）：`gh skill install <skill>@<tag>` = @git tag，`--pin` 锁定后
+> `gh skill update` 会跳过，需 `--unpin` 才升级。当前最新：`v0.1.0`。
+
+```powershell
+# 1. 验收通过后，先 dry-run 校验合规（应无 warning）
+gh skill publish --dry-run
+
+# 2. 打版本 + 建 GitHub release（semver tag；自动加 agent-skills topic）
+gh skill publish --tag v0.2.0
+
+# 3. 发布确认：远程 tag 与 release
+git ls-remote --tags origin      # 应见 refs/tags/v0.2.0
+gh release view v0.2.0 --repo raystyle/win-rmux
+```
+
+- **版本规范**：语义化标签 `vX.Y.Z`；拉新版本统一 `gh skill install raystyle/win-rmux win-rmux@vX.Y.Z --pin ...`。
+- **更新/回滚**：`--pin` 锁定的技能 `gh skill update --dry-run` 显示 "pinned to <tag> (skipped)"；解除用 `gh skill update --unpin win-rmux`，或直接重装到旧 tag 回滚。
+- **不可变**：`refs/tags/v*` 已被 tag protection ruleset 锁定（禁删除/禁 force-push），release 不可篡改。
+- **当前版本锚点**：v0.1.0（发布时已对三端 `--pin v0.1.0` 部署）。
+
 ## 任务
 
 - [x] skill 独立仓库 + 三端安装文档（gh skill）
