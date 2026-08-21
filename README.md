@@ -4,27 +4,42 @@
 的不同窗格里运行与驱动：新终端 + 多窗格布局（上 2 下 1）、send-keys / capture-pane、
 环境清理（NO_COLOR / TERM / PATH）、agent 状态判断原语、关闭退出。
 
-仓库源文件（目录结构）：
+仓库源文件（目录结构 + 各文件作用）：
 
 ```text
 win-rmux/
-  AGENTS.md                   # 开发协作规则（面向 Codex / Kimi 使用者）
-  CLAUDE.md                   # 开发协作规则（面向 Claude Code 使用者）
-  LICENSE                     # MIT
-  README.md
+  AGENTS.md         开发协作规则（面向 Codex / Kimi 使用者：环境约束、调试、测试回归验收）
+  CLAUDE.md         开发协作规则（面向 Claude Code 使用者：同上）
+  LICENSE           MIT 许可证
+  README.md         本文件：skill 简介 + 三端(gh skill)安装 / 更新 / 版本发布说明
   skills/
-    win-rmux/                 # skill 本体（agentskills 标准，frontmatter + 操作原语）
-      SKILL.md
+    win-rmux/       skill 本体（agentskills 标准：SKILL.md frontmatter + 操作原语；由
+                    gh skill install 整目录安装，缺任一子目录守卫都会失败）
+      SKILL.md      skill 入口：六原语(launch/locate/drive/observe/judge/recover.close)
+                    + 两任务原语(research / review-cycle) + 前置守卫 + yolo 免交互表
       hooks/
-        win-rmux-agent-state.ps1
-      references/             # 参考文档（命令/格式/选项/踩坑等）
-        README.md  rmux-usage.md  troubleshooting.md
-        commands.md  environment.md  extensions.md  formats.md
-        hooks.md  keybindings.md  options.md  overview.md
-        task-workflows.md  web-share.md  command-verification.md
+        win-rmux-agent-state.ps1  agent 状态上报 hook（working/blocked/idle 回写
+                                  AGENT_STATE_<name>，供 judge 读取；由 scripts/
+                                  install-agent-hooks.ps1 安装到三端 agent 配置）
+      references/   参考文档（供 skill 与 debug 引用，不直接执行）
+        overview.md              概念模型与核心命令速查
+        commands.md              全量命令参考（tmux 兼容面，rmux list-commands）
+        extensions.md            RMUX 扩展命令（capabilities / diagnose / wait-pane / web-share 等）
+        formats.md               -F 格式变量（session/window/pane/client 的格式占位符）
+        environment.md           环境变量 / 配置 / tiny<->full helper / socket
+        hooks.md                 agent 状态 hook 机制与配置（idle/working/blocked 通道）
+        keybindings.md           默认键位（prefix 表、root 表）
+        options.md               默认 server / window 选项与关键默认值
+        web-share.md             浏览器远程共享与隧道（含「远程 SSH」结论）
+        command-verification.md  全量命令在真实 server 上的实测执行结果
+        rmux-usage.md            操作原语研究 / 完整实现（launcher、drive 流程、
+                                 daemon 模型、ConPTY 备屏、恢复/关闭退出）
+        task-workflows.md        任务原语详细实现（research 研究->报告+POC、
+                                 review-cycle 评审->修改->复核循环到一致：prompt 模板/循环条件）
+        troubleshooting.md       **唯一踩坑/排障维护点**（现象 + 原因 + 排查/处理速查表）
       scripts/
-        install-agent-hooks.ps1
-        refresh-user-env.ps1
+        install-agent-hooks.ps1  把 agent 状态 hook 写进三端 agent 配置（幂等 + 路径感知）
+        refresh-user-env.ps1     把 User 环境变量补齐到当前会话（agent 缺 API key 时用）
 ```
 
 ## 全局安装（gh skill，三端）
