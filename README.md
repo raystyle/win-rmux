@@ -4,12 +4,28 @@
 的不同窗格里运行与驱动：新终端 + 多窗格布局（上 2 下 1）、send-keys / capture-pane、
 环境清理（NO_COLOR / TERM / PATH）、agent 状态判断原语、关闭退出。
 
-仓库源文件：
+仓库源文件（目录结构）：
 
-- `skills/win-rmux/SKILL.md`：skill 本体（agentskills 标准，frontmatter + 操作原语）
-- `AGENTS.md`：开发协作规则（面向 Codex / Kimi 使用者的环境约束、调试与验收流程）
-- `CLAUDE.md`：开发协作规则（面向 Claude Code 使用者，同上）
-- `references/troubleshooting.md` 等：skill 的参考文档（踩坑/命令/格式）
+```text
+win-rmux/
+  AGENTS.md                   # 开发协作规则（面向 Codex / Kimi 使用者）
+  CLAUDE.md                   # 开发协作规则（面向 Claude Code 使用者）
+  LICENSE                     # MIT
+  README.md
+  skills/
+    win-rmux/                 # skill 本体（agentskills 标准，frontmatter + 操作原语）
+      SKILL.md
+      hooks/
+        win-rmux-agent-state.ps1
+      references/             # 参考文档（命令/格式/选项/踩坑等）
+        README.md  rmux-usage.md  troubleshooting.md
+        commands.md  environment.md  extensions.md  formats.md
+        hooks.md  keybindings.md  options.md  overview.md
+        task-workflows.md  web-share.md  command-verification.md
+      scripts/
+        install-agent-hooks.ps1
+        refresh-user-env.ps1
+```
 
 ## 全局安装（gh skill，三端）
 
