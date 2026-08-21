@@ -128,8 +128,9 @@ function Enable-CodexHooksFeature {
   if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   $marker = '# win-rmux: enable agent-state hooks'
   $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
-  # 幂等判断用「行首 hooks 键」正则而非子串 Contains（避免注释/他表里的 hooks 误判，
-  # 也避免 hooks=false 时误插入重复键）：仅当 [features] 表内已有 hooks 键（任意值）才视为已启用
+  # 幂等判断用「行首 hooks 键」正则而非子串 Contains：避免注释(行首#)里的 hooks 误判、
+  # 避免 hooks=false 时插入重复键。注意：该正则是全文范围（非严格 [features] 表级），
+  # 若其他表下恰好有 hooks 键也会命中——codex config 实际无此键，现实风险低。
   $hooksLine = '(?m)^\s*hooks\s*=\s*'
   if ($content -and $content -match $hooksLine) {
     Write-Host "[codex] config.toml hooks already present"; return
