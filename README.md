@@ -6,9 +6,10 @@
 
 仓库源文件：
 
-- `skills/win-rmux/SKILL.md`：skill 本体（三端通用 SKILL.md 格式）
-- `AGENTS.md`：Codex / Kimi 的 skill 内容（与本体同源）
-- `CLAUDE.md`：Claude Code 的 skill 内容（与本体同源）
+- `skills/win-rmux/SKILL.md`：skill 本体（agentskills 标准，frontmatter + 操作原语）
+- `AGENTS.md`：开发协作规则（面向 Codex / Kimi 使用者的环境约束、调试与验收流程）
+- `CLAUDE.md`：开发协作规则（面向 Claude Code 使用者，同上）
+- `references/troubleshooting.md` 等：skill 的参考文档（踩坑/命令/格式）
 
 ## 全局安装（gh skill，三端）
 
