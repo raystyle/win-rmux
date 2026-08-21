@@ -17,7 +17,7 @@ rmux 是 Windows 的 tmux 兼容多路复用器（Helvesec/rmux）。本仓库�
 
 ## 层级与索引
 
-session → window → pane。默认 `base-index 0`、`pane-base-index 0`，所以 `dev:0.0`
+session -> window -> pane。默认 `base-index 0`、`pane-base-index 0`，所以 `dev:0.0`
 表示会话 `dev` 的 window 0、pane 0。
 
 target 写法：
@@ -47,7 +47,7 @@ target 写法：
 | 会话/窗格/窗口/客户端列表 | `rmux list-sessions` / `list-panes` / `list-windows` / `list-clients` |
 | 会话是否存在 | `rmux has-session -t NAME`（PowerShell 下用 `list-sessions` + `-contains` 更稳） |
 | 恢复 attach | `rmux attach-session -d -t NAME` |
-| 发送按键（两段式：文本 -l → 单独 Enter）| `rmux send-keys -t TARGET -l -- 'text'` + `rmux send-keys -t TARGET -- Enter` |
+| 发送按键（两段式：文本 -l -> 单独 Enter）| `rmux send-keys -t TARGET -l -- 'text'` + `rmux send-keys -t TARGET -- Enter` |
 | 读取输出 | `rmux capture-pane -t TARGET -p` |
 | 关会话 / 关 daemon | `rmux kill-session -t NAME` / `rmux kill-server` |
 | 等待窗格条件 | `rmux wait-pane -t TARGET --quiet --timeout 30s` |

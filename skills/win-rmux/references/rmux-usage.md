@@ -6,7 +6,7 @@
 
 - RMUX 是 Rust 写的 tmux 兼容终端复用器（105 个命令），Windows 原生 ConPTY，无需 WSL
 - 本机部署：`D:\ohmyenv\rmux`（ohmyenv 管理，已前置 PATH）。Windows 包 = `rmux.exe`（tiny CLI 分发器）+ `libexec\rmux\rmux.exe`（full helper），两者必须同目录保留
-- 配置读取顺序：`%XDG_CONFIG_HOME%\rmux\rmux.conf` → `~/.rmux.conf` → `%APPDATA%\rmux\rmux.conf` → `%RMUX_CONFIG_FILE%`；无配置时按 best-effort 解析 `tmux.conf`（`RMUX_DISABLE_TMUX_FALLBACK=1` 关闭）
+- 配置读取顺序：`%XDG_CONFIG_HOME%\rmux\rmux.conf` -> `~/.rmux.conf` -> `%APPDATA%\rmux\rmux.conf` -> `%RMUX_CONFIG_FILE%`；无配置时按 best-effort 解析 `tmux.conf`（`RMUX_DISABLE_TMUX_FALLBACK=1` 关闭）
 - 官方提供 Claude Code skill（`rmux claude install-skill` 装到 `%USERPROFILE%\.claude\skills\rmux`），项目级双端 skill 已在本仓库落地（`.claude/skills/rmux` + `.agents/skills/rmux`）
 
 ## 常用命令（实测可用）
@@ -59,8 +59,8 @@ pane id（`-t %3`）。
 
 ```powershell
 rmux new-session -d -s NAME 'cmd0'          # 窗格 0 全屏
-rmux split-window -h -d -t NAME 'cmd1'      # 右侧分割 → 上排两个
-rmux split-window -f -v -d -t NAME 'cmd2'   # -f 全宽下方分割 → 下排一个
+rmux split-window -h -d -t NAME 'cmd1'      # 右侧分割 -> 上排两个
+rmux split-window -f -v -d -t NAME 'cmd2'   # -f 全宽下方分割 -> 下排一个
 ```
 
 关键在第三个 `-f`（full）：让垂直分割跨整个 window 宽度；不加 `-f` 只会在当前 pane
@@ -122,14 +122,14 @@ rmux list-clients -F "#{client_name} term=#{client_termname} attached=#{client_s
 
 三个退出层级（前缀键默认 `Ctrl+B`，与 tmux 一致）：
 
-1. **只离开不杀会话（detach）**：`Ctrl+B d`（或 `Ctrl+B D` 选客户端）→ 回到外层终端，
+1. **只离开不杀会话（detach）**：`Ctrl+B d`（或 `Ctrl+B D` 选客户端）-> 回到外层终端，
    daemon 与会话全部保留，之后 `rmux attach-session -t 0` 回来。外部命令行可用
    `rmux detach-client -a`（注意：会断开所有客户端）。
 2. **关掉当前会话/窗格**：窗格内 shell 输入 `exit`（或 `Ctrl+D`），最后一个窗格关闭后
    会话结束；快捷键 `Ctrl+B x`（杀窗格，y 确认）、`Ctrl+B &`（杀窗口）、
    `Ctrl+B :` 后输入 `kill-session`。外部 `rmux kill-session -t NAME` 实测只影响目标会话，
    daemon 与其他会话原样存活。
-3. **彻底关闭 rmux**：`rmux kill-server`（无参数）→ 杀 daemon 及全部会话/窗格/PTY。
+3. **彻底关闭 rmux**：`rmux kill-server`（无参数）-> 杀 daemon 及全部会话/窗格/PTY。
    也可在 `Ctrl+B :` 命令模式输入 `kill-server`。验证：`Get-Process rmux` 无残留、
    命名管道消失。兜底：`Stop-Process -Name rmux -Force`（或 `rmux-daemon.exe`）。
 
@@ -139,13 +139,13 @@ rmux list-clients -F "#{client_name} term=#{client_termname} attached=#{client_s
 ## 独立终端窗口运行 claude（不开窗格，实测）
 
 适用：不想在 Codex 主窗口分屏，弹一个独立 Windows Terminal 窗口给 claude，从这边用
-rmux 命令驱动。正确链路是 **wt 窗口 → rmux → claude**：窗口自己跑 `rmux new-session -A`
+rmux 命令驱动。正确链路是 **wt 窗口 -> rmux -> claude**：窗口自己跑 `rmux new-session -A`
 （会话存在则 attach，不存在则创建并运行 claude），daemon 由窗口环境启动。
 
 ```powershell
 # 0. 关键：清掉 Codex 沙箱环境注入的污染
-#    - NO_COLOR=1 会一路传给 daemon→窗格→claude，把颜色全禁掉（必须 Remove-Item，置空无效）
-#    - TERM=dumb 会让 rmux 客户端无色彩 → 设为 xterm-256color
+#    - NO_COLOR=1 会一路传给 daemon->窗格->claude，把颜色全禁掉（必须 Remove-Item，置空无效）
+#    - TERM=dumb 会让 rmux 客户端无色彩 -> 设为 xterm-256color
 #    - 重建 PATH（含 .local\bin），否则 claude /status 会报 native PATH 警告
 Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 $env:TERM = 'xterm-256color'
@@ -170,12 +170,12 @@ rmux capture-pane -t claude -p
   `wt ... -d <目录>`，rmux 建会话/分窗格要显式 `-c <目录>`（Claude Code review 实测确认）。
 - **会话复用守卫**：`rmux has-session -t dev` 存在时先 `kill-session -t dev`，否则
   `new-session`（无 -A）报错后 `split-window` 会静默追加 dev:0.2，破坏固定窗格索引。
-- **旧 daemon 污染守卫**：daemon 若由含 NO_COLOR 的环境启动，新窗格颜色仍会坏——
+- **旧 daemon 污染守卫**：daemon 若由含 NO_COLOR 的环境启动，新窗格颜色仍会坏--
   `Get-Process rmux` 有进程且 `list-sessions` 无保留会话时先 `kill-server` 再走干净环境。
 - **send-keys 提交原语**：发送后 capture 验证输入行已清空/出现处理指示，未提交补发 `Enter`；
-  长 prompt 分「发文本 → 检查 → Enter」避免吞键（Claude Code review 时实测踩到）。
+  长 prompt 分「发文本 -> 检查 -> Enter」避免吞键（Claude Code review 时实测踩到）。
 - **无色彩的真正根因是 NO_COLOR=1**（Codex 沙箱注入），不是客户端 TERM：早期流程
-  「Codex 侧 `new-session -d` 预建会话 + wt 再 attach」会把 NO_COLOR 带进 daemon → claude 单色；
+  「Codex 侧 `new-session -d` 预建会话 + wt 再 attach」会把 NO_COLOR 带进 daemon -> claude 单色；
   改为窗口直接 `new-session -A` 并 `Remove-Item Env:NO_COLOR` 后恢复彩色（实测确认）。
 - **NO_COLOR/TERM 无法靠 Codex 配置关闭**：Codex unified exec 把 `UNIFIED_EXEC_ENV` 常量表
   （`NO_COLOR=1`、`TERM=dumb`、`LANG/LC_*=C.UTF-8`、`PAGER=cat`、`CODEX_CI=1` 等）硬编码注入每个
@@ -185,7 +185,7 @@ rmux capture-pane -t claude -p
 - daemon 生命周期：最后一个会话被 kill 后 daemon 自动退出（实测 `kill-session` 末会话后
   `list-sessions` 报 no server running）。
 - 旧窗口需要重开时，`rmux detach-client -t <client-id>` 断开后 wt 标签页自动关闭
-  （attach 进程退出 → 默认 closeOnExit graceful）。
+  （attach 进程退出 -> 默认 closeOnExit graceful）。
 - 实测 /status 零警告：重建 PATH（含 `.local\bin`）后 claude 读到正确 PATH。
 
 ## Claude Code review 结论（2026-08-19，双端 skill 互相校验）

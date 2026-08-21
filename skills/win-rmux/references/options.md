@@ -11,7 +11,7 @@
 | default-shell | cmd.exe | 选项值；但实测无命令时新窗格实际跑 pwsh.exe（见 command-verification.md） |
 | base-index | 0 | window 起始编号 |
 | pane-base-index | 0 | pane 起始编号 |
-| alternate-screen | on | 全屏 TUI 走备屏 → capture-pane 常为空 |
+| alternate-screen | on | 全屏 TUI 走备屏 -> capture-pane 常为空 |
 | remain-on-exit | off | 命令退出即关窗格 |
 | mouse | off | 默认关闭鼠标 |
 | history-limit | 2000 | 回滚行数 |

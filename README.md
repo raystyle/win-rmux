@@ -17,7 +17,7 @@
 
 skill 名 `win-rmux`，仓库结构符合 agentskills 的 `skills/*/SKILL.md` 约定，`gh skill install`
 会自动发现并把**整个 skill 目录**装到对应 agent 的用户级 skills 目录。注意：本 skill 不只是
-`SKILL.md`——前置守卫会直接执行 `scripts/refresh-user-env.ps1`、`scripts/install-agent-hooks.ps1`，
+`SKILL.md`--前置守卫会直接执行 `scripts/refresh-user-env.ps1`、`scripts/install-agent-hooks.ps1`，
 hook 回写依赖 `hooks/win-rmux-agent-state.ps1`，因此 `scripts/`、`hooks/`、`references/`
 必须随 SKILL.md 一起完整发布/安装，缺任何一个目录守卫都会失败。
 
@@ -60,7 +60,7 @@ gh skill install raystyle/win-rmux win-rmux --dir ~/.kimi-code/skills
 gh skill install D:\win-rmux win-rmux --from-local --agent codex --scope user
 ```
 
-旧版 `gh`（< 2.97，无 `skill` 命令）仍可用 `gh api` 回退——必须拉取**完整目录**
+旧版 `gh`（< 2.97，无 `skill` 命令）仍可用 `gh api` 回退--必须拉取**完整目录**
 （SKILL.md + scripts/ + hooks/ + references/，缺 scripts/ 或 hooks/ 守卫会失败）：
 
 ```bash

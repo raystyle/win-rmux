@@ -166,7 +166,7 @@
   - 客户端/交互类命令（attach-session、display-menu、display-panes、command-prompt、
     confirm-before、switch-client、detach-client、suspend-client、lock-client、
     refresh-client、display-popup）在无客户端时报 no current client / requires attached
-    client / not a terminal——它们需要真实终端客户端，headless 无法完整验证。
+    client / not a terminal--它们需要真实终端客户端，headless 无法完整验证。
   - `claude` 需要 Git Bash；`setup tmux-shim` 仅支持 Unix；`wait-for -U` 需先 `-L` 锁定。
 - `TIMEOUT` 均为正常阻塞行为：`stream-pane` 持续流式输出、`collect-pane-output
   --until-pane-exit` 等待窗格退出。

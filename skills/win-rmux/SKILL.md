@@ -30,7 +30,7 @@ compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
 # 1. 跑前置守卫（见下，含 refresh-user-env 与 hook 安装；关键：让 agent 有 API key）
 # 2. launch：弹 wt 建执行单元（三 agent 上 2 下 1）
 # 3. locate：rmux list-panes -t $unit -F '#{window_index}.#{pane_index} #{pane_current_command}'
-# 4. drive：给目标 agent 发提示（两段式：文本 -l → Enter → capture 验证提交，见 drive）
+# 4. drive：给目标 agent 发提示（两段式：文本 -l -> Enter -> capture 验证提交，见 drive）
 # 5. observe/judge：轮询产物文件或 AGENT_STATE_<name> 判 idle
 # 6. 收尾：kill-session -t $unit（默认 scoped 关闭；勿随手 kill-server）
 ```
@@ -59,7 +59,7 @@ $agents = @(
 # 指定本 skill 安装目录（脚本内联执行时 $PSScriptRoot 为空，必须显式给出）。
 # 例：C:\Users\<user>\.claude\skills\win-rmux（Claude）、~\.codex\skills\win-rmux（Codex）、
 #     ~\.config\agents\skills\win-rmux（kimi-cli，gh skill）等。请替换为你的实际安装路径。
-$SkillDir = '<SKILL_INSTALL_DIR>'   # ← 必填：用本机安装路径替换此占位符
+$SkillDir = '<SKILL_INSTALL_DIR>'   # 必填：用本机安装路径替换此占位符
 $env:RMUX_DISABLE_TINY_CLI = '1'   # 探针/操作统一走 full helper，规避 tiny CLI 误报（防止空报误触发 kill-server）
 if (Get-Process rmux -ErrorAction SilentlyContinue) {
   # 污染 daemon 守卫：仅在「rmux 进程在且 list-sessions 明确成功返回空」时 kill-server。
@@ -75,15 +75,15 @@ $mu = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environme
 $env:Path = (($mu -split ';') + ($env:Path -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
 # User 环境变量同步（宿主常不加载 User env，agent 会缺 DEEPSEEK_API_KEY 等 API key；
 # 必须 dot-source，子进程调用无效）
-# ⚠ 该脚本会把 **全部** User 作用域变量（含其中存储的所有密钥/凭据）拷贝进本会话，进而被下方
+# [风险] 该脚本会把 **全部** User 作用域变量（含其中存储的所有密钥/凭据）拷贝进本会话，进而被下方
 #   免审批/免沙箱 agent 读到。若计划对不可信输入跑 research，建议改成只放行 agent 实际需要的 key
 #   （如 DEEPSEEK_API_KEY / ANTHROPIC_API_KEY / GITHUB_TOKEN）。allowlist 参考实现见该项目研究产物的
 #   `.rmux_tasks/skill-review/research/poc-claude/hardened-guard.ps1`（非随 skill 分发，可在各自项目里自建）。
 . "$SkillDir/scripts/refresh-user-env.ps1"
-# agent 状态 hook 检测/安装（幂等 + 路径感知）。⚠ 首次运行会**改写全局** agent 配置
+# agent 状态 hook 检测/安装（幂等 + 路径感知）。[风险] 首次运行会**改写全局** agent 配置
 # （~/.codex/hooks.json & config.toml、~/.claude/settings.json、~/.kimi-code/config.toml），影响以后
 # 所有会话（每个 codex/kimi/claude 事件都会起一次 pwsh 上报状态）。回滚：restore 安装器旁边生成的
-# `*.bak-<时间戳>`，或删掉其中的 win-rmux hook 项；不需要可注释本行——judge 回退到进程/capture 判活。
+# `*.bak-<时间戳>`，或删掉其中的 win-rmux hook 项；不需要可注释本行：judge 回退到进程/capture 判活。
 pwsh -NoProfile -File "$SkillDir/scripts/install-agent-hooks.ps1"
 ```
 
@@ -110,13 +110,13 @@ rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane
 # 2. 布局：3 = 上 2 下 1；2 = -h 左右；1 = 单 pane；>3 前两个上排、其余 -f -v 全宽下堆
 ```
 
-- `$wd`（宿主侧）与 launcher 内的 `$wd` 是两份独立副本——两处都要给 `(Get-Location).Path`。
+- `$wd`（宿主侧）与 launcher 内的 `$wd` 是两份独立副本；两处都要给 `(Get-Location).Path`。
 - 宿主不在 job object 内（普通交互终端）时，可直接宿主 pwsh 跑 launcher body（更轻），失败
   报 `os error 5` 则回退 wt 启动。
 - launcher body 只含环境守卫（PATH/NO_COLOR/TERM），**用户 env 同步与 hook 安装仍要先跑一次
   前置守卫**（否则 agent 缺 API key、judge 无 hook 状态）。
 
-## locate：agent ↔ pane
+## locate：agent <-> pane 映射
 
 ```powershell
 rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane_current_command} top=#{pane_top} left=#{pane_left} w=#{pane_width} h=#{pane_height}"
@@ -125,7 +125,7 @@ rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane
 
 ## drive：给指定 agent 发 prompt（严格流程）
 
-> **必守**：drive 不是「发完就走」，必须做「提交确认」——发文本后**必须**验证它已真正进入
+> **必守**：drive 不是「发完就走」，必须做「提交确认」：发文本后**必须**验证它已真正进入
 > agent 处理（否则 prompt 停在输入框，agent 没开始）。三 agent 均实测：文本+Enter 同发会被吞。
 > 完整四步严格流程 + 出错排查见 `references/troubleshooting.md`（drive 相关坑的速查）。
 
@@ -137,17 +137,17 @@ function Get-AgentPane([string]$name) {
 }
 $p = Get-AgentPane 'codex'
 # ① 目标 pane 校验：用 pane_pid 反查**真实进程名**（display-message '#{pane_current_command}' 对 TUI agent 不可靠，
-#    可能把 kimi 标成 codex——见 references/troubleshooting.md「二、drive 相关」）；不匹配即 **throw 中止发送**。
+#    可能把 kimi 标成 codex；见 references/troubleshooting.md「二、drive 相关」）；不匹配即 **throw 中止发送**。
 #    注：假设 agent 是 pane 的直接进程；若经 pwsh/cli 包装启动，需再向下解析子进程 PID。
 $pp = rmux display-message -p -t $p -F '#{pane_pid}' 2>$null
 $real = (Get-CimInstance Win32_Process -Filter "ProcessId=$pp" -ErrorAction SilentlyContinue).Name
 if ($real -notmatch 'codex') {
-  throw "target pane ${p} real process=$real 非 codex；先 locate 复核 pane↔agent 映射，禁止盲发（warn-and-continue 会把 prompt 发给错误 agent）"
+  throw "target pane ${p} real process=$real 非 codex；先 locate 复核 pane<->agent 映射，禁止盲发（warn-and-continue 会把 prompt 发给错误 agent）"
 }
-# ② 发文本（-l 字面量防截断）→ ③ 单独 Enter 提交 → ④ capture 验证 prompt 已离开输入框：
+# ② 发文本（-l 字面量防截断）-> ③ 单独 Enter 提交 -> ④ capture 验证 prompt 已离开输入框：
 rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- '<ascii-prompt>'
 rmux send-keys -t $p -- Enter
-rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入框 → Enter 被吞，单独重发 Enter
+rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入框 -> Enter 被吞，单独重发 Enter
 ```
 
 - 回车只有 `Enter`；`C-m` 是字面量 `^M`。**Enter 必须单独一次 send-keys 发**（与文本同发实测不提交）。
@@ -156,7 +156,7 @@ rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入�
   `references/troubleshooting.md`「send-keys / 输入」。
 - 中文乱码：prompt 用 ASCII（通篇英文），含空格用 `-l` 字面量或拆 token + `Space`。
 - 等待：`--wait quiet|--wait-text|--wait-next-text|--wait-visible-text|--wait-pane-exit` + `--stable-for` + `--timeout`。
-- **`--wait quiet` 超时 ≠ 未发送**（指令可能已入输入框待提交）——**此时严禁重发同一条 prompt**
+- **`--wait quiet` 超时 ≠ 未发送**（指令可能已入输入框待提交）：**此时严禁重发同一条 prompt**
   （会排队两次执行两遍）；按上面 capture 验证只补 Enter，若已排队多份先 `C-c` 清队列。详见
   `references/troubleshooting.md`。
 
@@ -164,14 +164,14 @@ rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入�
 
 ```powershell
 rmux capture-pane -t $p -p        # codex(--no-alt-screen) 或非 TUI 可读
-rmux stream-pane -t $p --lines    # 流式；持续阻塞输出（实测不自行退出），勿前台裸跑——配超时或放后台/job
+rmux stream-pane -t $p --lines    # 流式；持续阻塞输出（实测不自行退出），勿前台裸跑：配超时或放后台/job
 rmux pane-snapshot -t $p          # 快照
 ```
 
 ### TUI 备屏的文件产物获取（claude/kimi 等备屏 TUI）
 
 claude/kimi 走 alternate screen，`capture-pane -a`/`-H`/`pane-snapshot` 均返回
-空（实测 `no alternate screen`），终端的 scrollback 历史也无法从外部回读——长回复、
+空（实测 `no alternate screen`），终端的 scrollback 历史也无法从外部回读；长回复、
 review 结论等**超过一屏的产物会永久丢**。可靠做法是让 agent 把结论**写进文件**再读文件
 （2026-08-21 三 agent review 实测）：
 
@@ -192,7 +192,7 @@ if (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) {
 
 - agent 写入用 `Set-Content`（pwsh，符合环境约束）；写错时目录要先 `New-Item -ItemType Directory -Force`。
 - 备屏 TUI 的当前帧 capture 仍可读到少量尾部（判定完成用 hook 状态 `idle` 或文件存在，更稳）。
-- 发送指令时若 pane 仍 `working`，`--wait quiet` 会超时（send-keys 报 timed out）——
+- 发送指令时若 pane 仍 `working`，`--wait quiet` 会超时（send-keys 报 timed out）；
   **超时 ≠ 未发送**，处置见上文「drive：给指定 agent 发 prompt（严格流程）」步骤 4：先查
   queued messages，不要盲目补发（补发可能造成重复排队执行两遍）。
 
@@ -209,8 +209,8 @@ rmux show-environment -t $unit AGENT_STATE_codex   # idle | working | blocked（
 - 就绪：`RMUX_DISABLE_TINY_CLI=1` + `list-panes` 确认 pane 在 + `Get-Process <cmd>` 进程活。
 - 可 capture（如 codex `--no-alt-screen`）：`capture-pane -p` 看预期输出。
 - TUI 备屏（claude/kimi）：优先看尾部状态（见 `references/troubleshooting.md`「TUI 备屏 / 判活」busy/ready 二值），再可辅以进程
-  CPU 增长判提交——**注意 CPU 法对 claude 深度思考阶段不可靠**（统计的是累计 CPU，深度思考
-  常驻低增量，会误报「未提交」→ 触发重发 → 重复排队），只作辅助：
+  CPU 增长判提交；**注意 CPU 法对 claude 深度思考阶段不可靠**（统计的是累计 CPU，深度思考
+  常驻低增量，会误报「未提交」-> 触发重发 -> 重复排队），只作辅助：
 
 ```powershell
 $before = ((Get-Process claude -ErrorAction SilentlyContinue) | Measure-Object CPU -Sum).Sum
@@ -236,7 +236,7 @@ Start-Process -FilePath (Get-Command wt.exe).Source -ArgumentList $wtArgs -Windo
 
 # close：默认只关**本执行单元**（scoped），不要顺手杀 daemon 上别人/其它任务的会话
 rmux kill-session -t $unit     # 关执行单元（推荐默认；其它会话/daemon 保留）
-# ⚠ kill-server 是**最后手段**：它杀掉本机 daemon 上的**全部会话**（含用户其它工具 / 并行任务）。
+# [风险] kill-server 是**最后手段**：它杀掉本机 daemon 上的**全部会话**（含用户其它工具 / 并行任务）。
 #   仅当确认这台 host 的 rmux daemon 只属于本 skill 且无其它保留会话时才用；常驻开发用 kill-session 即可。
 # rmux kill-server               # 全关（谨慎：会杀掉整台机器上所有 rmux 会话）
 ```
@@ -245,14 +245,14 @@ rmux kill-session -t $unit     # 关执行单元（推荐默认；其它会话/d
 
 | agent | yolo 启动 | 运行中切换 | 免备屏 |
 | --- | --- | --- | --- |
-| codex | `--dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust` | — | `--no-alt-screen` ✅ |
-| claude | `--dangerously-skip-permissions` | — | ❌ |
-| kimi | `--auto`（或 `-y`） | `/yolo on` | ❌ |
+| codex | `--dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust` | - | `--no-alt-screen` [是] |
+| claude | `--dangerously-skip-permissions` | - | [否] |
+| kimi | `--auto`（或 `-y`） | `/yolo on` | [否] |
 
 - 首选启动即免交互；若仍阻塞：kimi 发 `/yolo on` + `Enter`；codex/claude 审批键通常 `y`/`n`。
 - one-shot 非交互：`codex exec '<p>'` / `claude -p '<p>'` / `kimi -p '<p>'`（kimi `-p` 不能与 `-y` 组合）。
 
-> ⚠ **blast-radius 警告**：上表 yolo 参数全部禁用 agent 的**审批与沙箱**（`--dangerously-bypass-approvals-and-sandbox`、
+> [风险] **blast-radius 警告**：上表 yolo 参数全部禁用 agent 的**审批与沙箱**（`--dangerously-bypass-approvals-and-sandbox`、
 > `--dangerously-skip-permissions` 等），agent 可直接执行命令/落盘/访问密钥。research/review 会把这些 agent 推向
 > **不可信输入**（web/gh 搜索、第三方 prompt、他人 review 内容）。二者叠加 = prompt 注入即可在主机以你的身份执行任意操作。
 > - 只对**你信任的输入**、在自己熟悉的工作区运行本 skill；从不驱动这些 pane 处理来源不可信的 web/gh 内容而不复查。
@@ -286,9 +286,9 @@ graph LR
   `.rmux_tasks/<task-id>/research/`（见 `references/task-workflows.md` 目录规范）。
 - 完成后 `judge` 确认 agent 回 idle、读文件产物（不经 rmux，备屏完整）。
 
-### review-cycle：评审→修改→复核循环（到一致才停）
+### review-cycle：评审->修改->复核循环（到一致才停）
 
-适用：审阅一批代码改动，让多 agent 独立评审 → 主窗口按报告改代码 → 再复核 → 直到三方一致无必改项。
+适用：审阅一批代码改动，让多 agent 独立评审 -> 主窗口按报告改代码 -> 再复核 -> 直到三方一致无必改项。
 
 ```mermaid
 graph TD

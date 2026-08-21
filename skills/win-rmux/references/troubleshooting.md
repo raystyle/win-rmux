@@ -12,7 +12,7 @@
 | 现象 | 原因 | 排查 / 处理 |
 | --- | --- | --- |
 | `new-session` 报 `os error 5`（`Windows refused to launch an independent RMUX daemon`） | 宿主在 job object 内，独立 daemon 无法脱离 | 必须走 wt 启动（launcher 放 wt 内执行）；宿主直接跑会失败。多 agent 三 pane 布局见 rmux-usage |
-| wt 打开后 agent 工作目录是 `%USERPROFILE%` 而非目标 | 宿主侧 `$wd` 未定义 → `wt -d ""` 回退默认起始目录 | 宿主入口与 recover 段都要先 `$wd = (Get-Location).Path` |
+| wt 打开后 agent 工作目录是 `%USERPROFILE%` 而非目标 | 宿主侧 `$wd` 未定义 -> `wt -d ""` 回退默认起始目录 | 宿主入口与 recover 段都要先 `$wd = (Get-Location).Path` |
 | 三个 pane 都是错误目录 | launcher 内 `-c $wd` 拿到 USERPROFILE（`$wd` 未正确传） | 确认 wt 用了 `-d $wd`，且 launcher 在 `$wd` 目录下以 `-File` 运行 |
 | wt 标签一闪即关、无报错 | launcher 失败即退出 | 把 launcher 输出重定向到日志文件再读，或脚本尾部加暂停 |
 | agent pane 缺 DEEPSEEK_API_KEY 等环境变量 | launcher body 没 dot-source `refresh-user-env.ps1` | launch 前必须先跑一次前置守卫（含 user-env 同步 + hook 安装）；launcher 只含环境守卫 PATH/NO_COLOR/TERM |
@@ -58,7 +58,7 @@
 | `C-m` 不提交，成字面量 `^M` | 回车键名只有 `Enter` 有效 | 用 `Enter`；不要用 `C-m` |
 | 把键注入错误 pane | `send-keys` 目标写错 | 发送前 `find-panes` 确认目标 pane |
 | `C-c` 连按两次退出 claude 会话 | Claude Code 的 C-c 连按=退出 | **`C-c` 只发一次**；清输入队列单次，不生效先 `capture` 确认再决定。「C-c 只清未提交不打断思考」是 claude 实测；其他 TUI（尤其 kimi）Ctrl+C 可能中断运行 |
-| **codex pane 单次 `C-c` 就整个退出（进程消失、pane 消失）** | codex（`--no-alt-screen`）把单次 `C-c` 解释为「退出应用」而非「清输入框」；kimi/claude 则容忍 | **drive 前严禁对 codex pane 发 `C-c` 预清**；改用「直接发文本→`Enter`→capture 验证」即可。（2026-08-21 实测：三次「codex 崩溃」全因 drive 前的 `C-c` 预清；去掉后再无崩溃） |
+| **codex pane 单次 `C-c` 就整个退出（进程消失、pane 消失）** | codex（`--no-alt-screen`）把单次 `C-c` 解释为「退出应用」而非「清输入框」；kimi/claude 则容忍 | **drive 前严禁对 codex pane 发 `C-c` 预清**；改用「直接发文本->`Enter`->capture 验证」即可。（2026-08-21 实测：三次「codex 崩溃」全因 drive 前的 `C-c` 预清；去掉后再无崩溃） |
 | tiny CLI 报 `can't find pane` | `rmux.exe` tiny 分发器对部分目标解析失败 | 设 `RMUX_DISABLE_TINY_CLI=1` 走 full helper |
 | send-keys 提示 pane 不存在 | 目标 pane 已关闭/换位 | `list-panes` / `find-panes` 复查当前 pane id |
 

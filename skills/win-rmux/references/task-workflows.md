@@ -6,8 +6,8 @@
 
 ## 0. 前置
 
-两种任务都先走六原语：`launch`（建执行单元，上 2 下 1：codex/kimi/claude）→ `locate`
-复核 pane → 需要时 `recover` 弹前台看板。产物走**写文件**（备屏 TUI 完整帧不可从外部
+两种任务都先走六原语：`launch`（建执行单元，上 2 下 1：codex/kimi/claude）-> `locate`
+复核 pane -> 需要时 `recover` 弹前台看板。产物走**写文件**（备屏 TUI 完整帧不可从外部
 读，长产物永久丢，见 troubleshooting「TUI 备屏」）。
 
 ## 0.1 执行单元命名分类（标准，一眼看出"是执行单元 + 跑什么任务"）
@@ -17,7 +17,7 @@
 
 ```text
 session 名 : <type>-<task-id或短名>        例：rs-20260821-wsl（研究）/ rv-20260821-features（评审复核）
-wt 窗口标题: [<type>] <短主题> — <task-id>  例：[research] WSL 镜像 — r-20260821-wsl
+wt 窗口标题: [<type>] <短主题> - <task-id>  例：[research] WSL 镜像 - r-20260821-wsl
 pane 内   : WIN_RMUX_AGENT=<agent>（codex/kimi/claude）不重复，unit 用 session 名
 ```
 
@@ -25,7 +25,7 @@ pane 内   : WIN_RMUX_AGENT=<agent>（codex/kimi/claude）不重复，unit 用 s
 - session 名用 `rs-`/`rv-` + task-id（.rmux_tasks 的第 1 段工具缩写一致）；task-id 见
   `.rmux_tasks/<task-id>`。
 - wt 标题带 `[research]`/`[review]` 标签 + 短主题，attach 时一眼可辨。
-- pane 不需编码单元——unit 即 session 名，`Get-AgentPane` 按 `WIN_RMUX_AGENT` 寻址即可。
+- pane 不需编码单元--unit 即 session 名，`Get-AgentPane` 按 `WIN_RMUX_AGENT` 寻址即可。
 
 ## 1. research：研究任务
 
@@ -40,12 +40,12 @@ pane 内   : WIN_RMUX_AGENT=<agent>（codex/kimi/claude）不重复，unit 用 s
 ### 1.2 步骤
 
 ```text
-1. launch（建单元）→ locate（复核 pane）
+1. launch（建单元）-> locate（复核 pane）
 2. drive 研究 prompt（见下方模板）给一个 agent（深度研究）或按需分给多个（分工不同子题）
 3. observe/judge：轮询产物文件出现（加超时上限，防永久挂起）
 4. 读 .rmux_tasks/<task-id>/research/research-<topic>.md 与 poc-*/（不经 rmux，产物完整）
 5. 主窗口审阅报告 + 跑 POC 验证（在宿主侧执行，或再 drive 给 agent 跑通）
-6. 需要迭代：drive 追问/修订 → 回第 3 步；否则 close
+6. 需要迭代：drive 追问/修订 -> 回第 3 步；否则 close
 ```
 
 ### 1.3 research prompt 模板（ASCII，避免 send-keys 乱码；长则写文件让 agent Read）
@@ -63,27 +63,27 @@ Reply DONE <你名> when written.
 ```
 
 - 涉及 GitHub 代码研究：明确指示用 `gh search code "<kw>" --repo <owner/repo>` / `gh api
-  repos/<owner>/<repo>/...`。**前置守卫不检查 gh**——研究开始前先自检
+  repos/<owner>/<repo>/...`。**前置守卫不检查 gh**--研究开始前先自检
   `Get-Command gh`（缺则提示装 gh 或跳过 GitHub 子任务），否则 gh 子任务直接失败。
-- 长 prompt：不要 send-keys 一条超长——写入 `.rmux_tasks/<task-id>/prompt.md`（或研究专属
+- 长 prompt：不要 send-keys 一条超长--写入 `.rmux_tasks/<task-id>/prompt.md`（或研究专属
   路径），`drive` 一个短指令让它 Read 该文件（见 troubleshooting「drive 相关」长 prompt 截断）。
 - 单 agent 研究类只看一个 pane 产物即够；多子题分工时按 pane 索引对应产物。
 
-## 2. review-cycle：评审→修改→复核循环
+## 2. review-cycle：评审->修改->复核循环
 
 ### 2.1 目标产物与循环
 
 审一批代码改动，收敛到"三方一致、无 must-fix"：
 - 每轮产物：`.rmux_tasks/<task-id>/review/review-<agent>.md`（首轮独立评审）、`.rmux_tasks/<task-id>/recheck/<round>/recheck-<agent>.md`
   （复核上轮修复）、`.rmux_tasks/<task-id>/review/prompt.md`（指令文件，长 prompt 用）。
-- 循环：评审 → 主窗口按报告改代码 → 复核 → 直到三方都"无 must-fix"。
+- 循环：评审 -> 主窗口按报告改代码 -> 复核 -> 直到三方都"无 must-fix"。
 - **不关闭执行单元**：循环全程保留单元（会话上下文不断，避免每轮重开）。终态达成后才
   `close`（或 `recover` 供主窗口继续）。
 
 ### 2.2 步骤
 
 ```text
-1. launch（建单元，会话名 task-<id>、wt 标题 <task-type>-<topic>；见「执行单元命名」）→ locate
+1. launch（建单元，会话名 task-<id>、wt 标题 <task-type>-<topic>；见「执行单元命名」）-> locate
 2. 首轮评审：
    - 写好 review 指令文件 .rmux_tasks/<task-id>/review/prompt.md（指定审哪个 diff / 哪些文件 / 产物路径）
    - drive 给 codex/kimi/claude 各一条短指令（带 agent 名）："You are <agent>. Read
@@ -97,8 +97,8 @@ Reply DONE <你名> when written.
    - drive 给三 agent 各"Read <r<N>-prompt.md> and write r<N>-recheck-<agent>.md"
    - 轮询三份 r<N>-recheck-<agent>.md 齐全
 5. 判断：三份复核是否都以 `AGREE:` 开头（= 无 must-fix）？
-   - 否 → 主窗口按剩余意见再改 → 回第 4 步（round+1）
-   - 是 → 一致达成，close（或 recover 继续）
+   - 否 -> 主窗口按剩余意见再改 -> 回第 4 步（round+1）
+   - 是 -> 一致达成，close（或 recover 继续）
    - 保护：设最大轮数（如 5），超限转人工判断，防"不关单元直到一致"死循环
 ```
 
@@ -106,9 +106,9 @@ Reply DONE <你名> when written.
 
 > 指令文件供三 agent 共享；占位 `<agent>` 由短 drive 指令带上 agent 名解析，勿让 agent 自己
 > 猜（否则三 agent 写同一文件互相覆盖）。模板尽量 ASCII（占位用 `<topic>/<agent>/<issue>`），
-> send-keys 的短指令必须纯 ASCII——中长模板本身写文件让 agent Read。
+> send-keys 的短指令必须纯 ASCII--中长模板本身写文件让 agent Read。
 
-首轮（指向给定 diff/文件）——写到 `.rmux_tasks/<task-id>/review/prompt.md`：
+首轮（指向给定 diff/文件）--写到 `.rmux_tasks/<task-id>/review/prompt.md`：
 
 ```text
 REVIEW <scope> (read-only; do NOT modify files).
@@ -121,11 +121,11 @@ Do NOT read/open secret/credential files (.secrets, *key*.ps1, API-key/token);
 focus code structure/logic/consistency.
 ```
 
-复核（上轮修复后）——写到 `.rmux_tasks/<task-id>/recheck/<round>/r<N>-prompt.md`：
+复核（上轮修复后）--写到 `.rmux_tasks/<task-id>/recheck/<round>/r<N>-prompt.md`：
 
 ```text
 RECHeck <scope> after apply of my fixes (read-only).
-Fix reference: <git show <hash> | git diff <base>..<head> | 未提交: git diff> — 对照上轮 review
+Fix reference: <git show <hash> | git diff <base>..<head> | 未提交: git diff> - 对照上轮 review
   的 must-fix 逐项验证；若修复已提交给提交号，未提交给工作区 diff。
 Report ONLY: must-fix the fixes did NOT address + new regressions introduced by the fixes.
 If all good, start with "AGREE:" else "REGRESSION:".
@@ -143,16 +143,16 @@ Skip secret/credential files.
 
 - **产物一致命名**：统一放 `.rmux_tasks/<task-id>/`，轮次用 `recheck/<round>/r<N>-` 前缀区分；
   旧的保留归档（每轮新建目录不覆盖，`.rmux_tasks/README.md` 是归档索引）。
-- **三份都到齐才算一轮**：轮询用「三文件全出现 → 读齐 → 综合」，别拿到一份就改。
+- **三份都到齐才算一轮**：轮询用「三文件全出现 -> 读齐 -> 综合」，别拿到一份就改。
 - **不盲目按单 agent 意见改**：三方可能意见不同，主窗口把 must-fix 归纳（共同的必改、
   单方的参考/标注），避免改过头。上一轮 review 实践：codex/kimi/claude 对一个真回归
   （如 `$features 整段重复`）会独立命中，主窗口据此定改法。
 - **复核轮 prompt 必须给「上轮已改什么」**（diff 或提交号），否则 agent 会重复报已修项。
 - **中长 prompt 写文件让 agent Read**（drive 一条短指令），避免 send-keys 截断/排队；短
-  指令仍走 drive 严格流程（发→Enter→capture 验证提交）。
+  指令仍走 drive 严格流程（发->Enter->capture 验证提交）。
 - **agent 读密钥/guard 源码会被自身策略或 secret-guard 反拦**：prompt 恒附 "skip
   secret/credential files"（见 troubleshooting「agent 行为」）。
-- **不关单元**：循环中不要 `kill-session`——那会丢所有 agent 上下文；只有终态达成(一致的
+- **不关单元**：循环中不要 `kill-session`--那会丢所有 agent 上下文；只有终态达成(一致的
   无需再改)才 close。
 
 ## 3. 产物目录约定（标准，严格）
@@ -189,7 +189,7 @@ Skip secret/credential files.
   三 agent 共用同一份指令（prompt 里不要写死单个 agent 名）。
 - **产物命名**：`research-<topic>.md`、`review-<agent>.md`、`recheck-<agent>.md`、
   `poc-<topic>/`。agent 固定 `codex|kimi|claude`。
-- **同任务多轮**：research 一次→多子题可在 `<task-id>/research/poc-<sub>/` 细分；
+- **同任务多轮**：research 一次->多子题可在 `<task-id>/research/poc-<sub>/` 细分；
   review 多轮在 `recheck/<round>/` 递增，旧的保留不覆盖。
 - **归档索引**：`.rmux_tasks/README.md` 记录每个 task-id 的 阶段/结论/关联提交（win-rmux
   review 归档即此模式）。

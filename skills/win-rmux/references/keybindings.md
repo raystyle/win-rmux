@@ -23,7 +23,7 @@
 | `Up/Down/Left/Right` | 选窗格 | select-pane -U/-D/-L/-R |
 | `M-Up/Down/Left/Right` | 调窗格大小（5 行/列） | resize-pane |
 | `C-b` | 向 pane 发前缀 | send-prefix |
-| `0`–`9` | 选窗口 0–9 | select-window -t :=N |
+| `0`-`9` | 选窗口 0-9 | select-window -t :=N |
 
 ## 完整表
 
@@ -36,7 +36,7 @@
 - 普通文本按键按参数原样发送；`--` 之后是按键列表。
 - 回车只有 `Enter` 有效；`C-m` 会被当字面量 `^M`（实测踩坑，见 rmux-usage.md）。
 - 特殊键：`Space`、`Tab`、`BSpace`、`Enter`、`Escape`、`Up`/`Down`/`Left`/`Right`、
-  `Home`/`End`、`PageUp`(=`PPage`)/`PageDown`、`F1`–`F12`、`Insert`/`Delete`。
+  `Home`/`End`、`PageUp`(=`PPage`)/`PageDown`、`F1`-`F12`、`Insert`/`Delete`。
 - 修饰前缀：`C-`(Ctrl)、`M-`(Alt)、`S-`(Shift)，如 `C-c`、`M-Up`、`C-b`。
 - `-l` 字面量发送、`-N N` 重复 N 次、`-H` 十六进制字节。
 

@@ -28,7 +28,7 @@ win-rmux 从 ohmypwsh 项目的 rmux skill 迁移独立而来。关键踩坑已�
 
 ## 测试回归验收方法
 
-先调试稳定，后安装：下面 1–5 全部通过、三端 review 收敛后，再做第 6 步三端安装回归。
+先调试稳定，后安装：下面 1-5 全部通过、三端 review 收敛后，再做第 6 步三端安装回归。
 
 1. 新终端 + 三席上 2 下 1：`new-session` + `split-window -h` + `split-window -f -v`，
    验证 `0.0 codex / 0.1 kimi / 0.2 claude`，0.2 全宽在下。
@@ -45,5 +45,5 @@ win-rmux 从 ohmypwsh 项目的 rmux skill 迁移独立而来。关键踩坑已�
 - [x] skill 独立仓库 + 三端安装文档（gh skill）
 - [x] 三席上 2 下 1 实测回归（前台三 agent review）
 - [x] 三端互相 review（codex/kimi/claude）
-- [x] agent 状态 hook 落地 + 三端 working→idle 回归
+- [x] agent 状态 hook 落地 + 三端 working->idle 回归
 - [x] 调试稳定后：三端 gh skill 安装回归
