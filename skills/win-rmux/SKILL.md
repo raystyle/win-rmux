@@ -21,7 +21,7 @@ compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
 核心模型：
 
 - **执行单元（Execution Unit）** = 一个 rmux 会话，承载 N 个 agent 各占一个 pane；默认 3 个 codex/kimi/claude，上 2 下 1。
-- **两种模式（默认必须是前台）**：`Visible=$true`（**默认**，前台弹 wt 可见，用户能实时看到三 agent 执行）；`Visible=$false` 后台 headless 纯 rmux 驱动——**仅在用户明确要求后台/无人值守时才用**，绝不当默认。
+- **两种模式（默认必须是前台）**：`Visible=$true`（**默认**，前台弹 wt 可见，用户能实时看到三 agent 执行）；`Visible=$false` 后台 headless 纯 rmux 驱动；**仅在用户明确要求后台/无人值守时才用**，绝不当默认。
 - **六原语**：launch / locate / drive / observe / judge / recover-close。
 - 寻址按 agent 名，不硬编码 pane 索引；未来加 pi/grok 只改 `$agents`。
 
@@ -307,7 +307,7 @@ rmux kill-session -t $unit     # 关执行单元（推荐默认；其它会话/d
 
 ### research：研究任务（产研究报告 + 最小原型 POC）
 
-适用：根据需求做信息搜索、代码研究（含用 `gh` 搜 GitHub 代码），得出可用结论 + 最小可跑原型。
+适用：根据需求做**两维度研究**：A. 代码维度（`gh search code` / `gh api` 查真实代码/仓库/版本）；B. 信息维度（web 搜文档/公告/讨论），交叉验证后得出可用结论 + 最小可跑原型。
 
 ```mermaid
 graph LR
@@ -321,7 +321,7 @@ graph LR
 ```
 
 要点：
-- 研究 prompt 明确：需求、要搜的关键词/仓库、是否用 `gh search`/`gh api`、产物写到哪。
+- 研究 prompt 明确：需求、**两维度研究指令**（A. 代码维度 `gh search code`/`gh api` + B. 信息维度 web 搜索，都要做且标注证据来源）、产物写到哪。
 - 产物二件套：研究报告（结论+依据+方案）+ 最小原型（可独立运行的 POC 代码），统一收在
   `.rmux_tasks/<task-id>/research/`（见 `references/task-workflows.md` 目录规范）。
 - 完成后 `judge` 确认 agent 回 idle、读文件产物（不经 rmux，备屏完整）。

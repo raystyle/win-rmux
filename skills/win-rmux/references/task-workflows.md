@@ -34,8 +34,12 @@ pane 内   : WIN_RMUX_AGENT=<agent>（codex/kimi/claude）不重复，unit 用 s
 
 ### 1.1 目标与产物
 
-面向"根据需求去查清一件事并给出可用结论 + 可跑原型"：
-- 信息搜索（web）或代码研究（`gh search code` / `gh api` 查 GitHub 仓库/内容/版本）
+面向"根据需求去查清一件事并给出可用结论 + 可跑原型"。**核心方式 = 两个维度并行研究、交叉验证**：
+
+- **代码维度（gh）**：用 `gh search code "<kw>" --repo <owner/repo>` / `gh api repos/<owner>/<repo>/...`
+  查 GitHub 真实代码、仓库结构、版本、release、issues：得到"代码里到底怎么写的"。
+- **信息维度（web）**：搜官方文档、公告、教程、讨论/issue 结论：得到"为什么这样、还有哪些方案/坑"。
+- 两个维度**都要做**（不是二选一）：信息维度先定位方向和候选方案，代码维度再用真实仓库/代码验证；结论须能指出证据来自哪条 gh 命中或哪个来源。
 - 产物二件套（让 agent 写到指定路径，绝对路径）：
   - 研究报告：`.rmux_tasks/<task-id>/research/research-<topic>.md`（结论 + 依据 + 可行方案 + 取舍）
   - 最小原型 POC：`.rmux_tasks/<task-id>/research/poc-<topic>/`（可独立运行的最小编译/执行，验证方案）
@@ -58,16 +62,21 @@ pane 内   : WIN_RMUX_AGENT=<agent>（codex/kimi/claude）不重复，unit 用 s
 ```text
 RESEARCH task (read-only; do not modify project files).
 Objective: <一句话需求>
-Search: <要搜的 web 方向 / 或 gh search/gh api 查的 GitHub 仓库、关键词、版本>
+Research method (two dimensions, do BOTH and cross-check):
+  A. Code dimension (gh): gh search code "<kw>" --repo <owner/repo> / gh api repos/<owner>/<repo>/...
+     -> find how real code/repos do it (versions, releases, issues).
+  B. Info dimension (web): search official docs, announcements, tutorials, issue discussions
+     -> find why, alternatives, known pitfalls.
+  Evidence: cite which gh hit / which source each conclusion came from.
 Deliver, to these exact paths:
   1. report : D:\<proj>\reports\research-<主题>.md   (markdown: 结论/依据/可行方案/取舍)
   2. poc    : D:\<proj>\reports\poc-<主题>\            (最小可运行原型 + 一句怎么跑)
 Reply DONE <你名> when written.
 ```
 
-- 涉及 GitHub 代码研究：明确指示用 `gh search code "<kw>" --repo <owner/repo>` / `gh api
-  repos/<owner>/<repo>/...`。**前置守卫不检查 gh**：研究开始前先自检
-  `Get-Command gh`（缺则提示装 gh 或跳过 GitHub 子任务），否则 gh 子任务直接失败。
+- **两维度研究是硬要求**：模板里 A（代码维度）/ B（信息维度）都要做。**前置守卫不检查 gh**：
+  研究开始前先自检 `Get-Command gh`（缺则提示装 gh 或明确告知只能做信息维度、代码维度结论降级），
+  否则 gh 子任务直接失败。
 - 长 prompt：不要 send-keys 一条超长：写入 `.rmux_tasks/<task-id>/prompt.md`（或研究专属
   路径），`drive` 一个短指令让它 Read 该文件（见 troubleshooting「drive 相关」长 prompt 截断）。
 - 单 agent 研究类只看一个 pane 产物即够；多子题分工时按 pane 索引对应产物。
@@ -206,7 +215,7 @@ Skip secret/credential files.
   只在"意见只作参考、改不改由主窗口自己定"的场景用。
 - 产物仍落 `.rmux_tasks/<task-id>/review/`，命名 review-<agent>.md（单文件）；不要用
   `r<N>-recheck` 前缀（那是循环专属）。
-- 单 pane 启动时 launcher 只跑 `new-session -d`（直接建，不带 `-A`——`-A` 会静默附加到同名
+- 单 pane 启动时 launcher 只跑 `new-session -d`（直接建，不带 `-A`：`-A` 会静默附加到同名
   残留会话，正是环境探针要防的叠窗格）；不 `split-window`。
 
 ## 3. 产物目录约定（标准，严格）
