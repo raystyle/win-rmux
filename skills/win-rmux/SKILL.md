@@ -113,6 +113,27 @@ rmux stream-pane -t $p --lines    # 流式
 rmux pane-snapshot -t $p          # 快照
 ```
 
+### TUI 备屏的文件产物获取（claude/kimi 等备屏 TUI）
+
+claude/kimi 走 alternate screen，`capture-pane -a`/`-H`/`pane-snapshot` 均返回
+空（实测 `no alternate screen`），终端的 scrollback 历史也无法从外部回读——长回复、
+review 结论等**超过一屏的产物会永久丢**。可靠做法是让 agent 把结论**写进文件**再读文件
+（2026-08-21 三 agent review 实测）：
+
+```powershell
+# 1. 指示 agent 把产物写到工作区某个路径（prompt 用 ASCII；文件用绝对路径）
+$writePrompt = 'Write your full review to D:\win-rmux\reviews\review-kimi.md (markdown). Set-Content -Path D:\win-rmux\reviews\review-kimi.md -Value (content). Reply "WRITTEN" when done.'
+rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -- $writePrompt
+rmux send-keys -t $p -- Enter
+# 2. 轮询文件出现（judge 状态回 idle 或文件存在）
+while (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) { Start-Sleep -Seconds 15 }
+# 3. 直接读文件内容（不经 rmux，产物完整持久）
+```
+
+- agent 写入用 `Set-Content`（pwsh，符合环境约束）；写错时目录要先 `New-Item -ItemType Directory -Force`。
+- 备屏 TUI 的当前帧 capture 仍可读到少量尾部（判定完成用 hook 状态 `idle` 或文件存在，更稳）。
+- 发送指令时若 pane 仍 `working`，`--wait quiet` 会超时（send-keys 报 timed out）——超时后补发一次 `Enter` 即可，指令已入缓冲区，agent 完成后会执行。
+
 ## judge：判断 agent 状态 / 是否已提交
 
 首选读 hook 上报状态（需一次性安装 hook，见 `references/hooks.md`）：
