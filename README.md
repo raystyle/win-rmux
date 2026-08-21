@@ -56,16 +56,16 @@ hook 回写依赖 `hooks/win-rmux-agent-state.ps1`，因此 `scripts/`、`hooks/
 ```bash
 # 推荐：装到最新 release 并锁定版本（后续 gh skill update 跳过，升级需显式解 pin）
 # Codex
-gh skill install raystyle/win-rmux win-rmux@v0.1.4 --pin --agent codex --scope user
+gh skill install raystyle/win-rmux win-rmux@v0.1.5 --pin --agent codex --scope user
 
 # Claude Code
-gh skill install raystyle/win-rmux win-rmux@v0.1.4 --pin --agent claude-code --scope user
+gh skill install raystyle/win-rmux win-rmux@v0.1.5 --pin --agent claude-code --scope user
 
 # Kimi Code
-gh skill install raystyle/win-rmux win-rmux@v0.1.4 --pin --agent kimi-cli --scope user
+gh skill install raystyle/win-rmux win-rmux@v0.1.5 --pin --agent kimi-cli --scope user
 ```
 
-> 想跟动态 HEAD（不锁版本）可去掉 `@v0.1.4 --pin`（默认解析：最新 release tag，无则用默认分支 HEAD）。
+> 想跟动态 HEAD（不锁版本）可去掉 `@v0.1.5 --pin`（默认解析：最新 release tag，无则用默认分支 HEAD）。
 
 安装后重启对应 agent 生效。三端统一从 `skills/win-rmux/SKILL.md` 安装，并带上
 `references/rmux-usage.md`。
@@ -109,7 +109,7 @@ tar -xzf /tmp/win-rmux.tar.gz --strip-components=2 -C "$dest" --wildcards '*/ski
 ## 版本发布（发布新版本）
 
 版本由 git tag / release 管理（无独立 version 字段；`gh skill install <skill>@<tag>`
-= @git tag，`--pin` 锁定后 `gh skill update` 跳过）。当前最新：`v0.1.4`。
+= @git tag，`--pin` 锁定后 `gh skill update` 跳过）。当前最新：`v0.1.5`。
 
 ```bash
 # 校验合规（推荐：无 warning 再发）
