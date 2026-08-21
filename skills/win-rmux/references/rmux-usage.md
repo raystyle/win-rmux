@@ -207,7 +207,7 @@ list-clients 竞态等待、`--wait-text` 补齐、tiny CLI 结构说明、PATH 
 5. **`rmux claude`（teammate 模式）**：自动传 `--teammate-mode tmux` 并注入私有 tmux shim；内层会话 socket 每实例随机（`-L` 无法预知），外层命令看不到内层会话；TUI 内容同样不可捕获。调试建议改用 `claude -p`（纯文本可捕获）或让用户目视窗格。
 6. **发送键到未知窗格有副作用**：`send-keys` 目标错误会把键注入错误的 pane（实测曾把 echo 打进其他 agent 会话输入框）。发送前先 `find-panes` 确认目标。
 7. **中文输入经 send-keys 丢失/乱码**：对 Claude Code 窗格发中文 payload（如 `-- '只回复"连接正常"' Enter`）时输入框不显示内容，且产生 `server closed connection before a complete response frame arrived`（乱码字节打到 API）；同一窗格英文 payload 立即正常。驱动 claude 的 prompt 先用 ASCII/英文，或先 `claude -p` 走管道传中文。
-8. **回车键名只有 `Enter` 有效**：`C-m` 会被当字面量 `^M` 发送（实测 pwsh 输入框出现 `echo B^M` 未执行，而 `Enter` 正常提交输出）；发送后不要盲目连发 Enter/C-m。TUI agent（codex/claude/kimi）的 capture 因 alternate screen 为空，提交判断改用**进程 CPU 增长**：发送前记 `$before=(Get-Process <agent>).CPU`，发送后 2-3s 记 `$after`，增量 >0.5 即已提交并开始处理；否则只补发一次 `Enter`。
+8. **回车键名只有 `Enter` 有效**：`C-m` 会被当字面量 `^M` 发送（实测 pwsh 输入框出现 `echo B^M` 未执行，而 `Enter` 正常提交输出）；发送后不要盲目连发 Enter/C-m。TUI agent（codex/claude/kimi）的完整帧 capture 为空（仅尾部少量状态行可读），提交判断优先用**尾部状态 busy/ready**（见 SKILL「关键踩坑」），进程 CPU 增长只作辅助——CPU 对 claude 深度思考阶段不可靠，会误报未提交进而触发重发/排队。
 
 ## 与本项目的关系
 
