@@ -1,6 +1,6 @@
 ---
 name: win-rmux
-description: 在 Windows/pwsh 用 RMUX 把 codex/kimi/claude（可扩展 pi/grok）放进一个「执行单元」同一终端多窗格里前台/后台远程驱动：launch/locate/drive/observe/judge/recover-close 六原语，上2下1 布局，yolo 免交互启动，send-keys/capture-pane，环境守卫。
+description: 在 Windows/pwsh 用 RMUX 把 codex/kimi/claude（可扩展 pi/grok）放进一个「执行单元」同一终端多窗格里前台/后台远程驱动：launch/locate/drive/observe/judge/recover-close 六原语 + research（研究→报告+POC）与 review-cycle（评审→修改→复核循环到一致）两任务原语，上2下1 布局，yolo 免交互启动，send-keys/capture-pane，环境守卫。
 compatibility: Windows 10/11 + PowerShell 7 + rmux（PATH 内）+ Windows Terminal（wt）
 ---
 
@@ -211,6 +211,61 @@ rmux kill-server               # 全关（杀 daemon 及所有 agent）
 
 - 首选启动即免交互；若仍阻塞：kimi 发 `/yolo on` + `Enter`；codex/claude 审批键通常 `y`/`n`。
 - one-shot 非交互：`codex exec '<p>'` / `claude -p '<p>'` / `kimi -p '<p>'`（kimi `-p` 不能与 `-y` 组合）。
+
+## 任务原语（在六原语之上组合的两个工作流）
+
+> 六原语（launch/locate/drive/observe/judge/recover-close）是单步原子操作；**任务原语**是
+> 面向两类实际任务的标准工作流，复用六原语自动推进。详细实现、产物规范、循环条件见
+> `references/task-workflows.md`。
+
+### research：研究任务（产研究报告 + 最小原型 POC）
+
+适用：根据需求做信息搜索、代码研究（含用 `gh` 搜 GitHub 代码），得出可用结论 + 最小可跑原型。
+
+```text
+主窗口                             agent（一个或多个 pane）
+  │  drive: 研究 prompt（需求/搜索方向/产物路径）  │
+  │ ───────────────────────────────────────────────▶│  搜索信息 + gh search code/api 研究
+  │                                                 │  └→ 写 .rmux_tasks/<task-id>/research/research-<topic>.md
+  │   observe/judge: 轮询产物文件出现               │     + .rmux_tasks/<task-id>/research/poc-<topic>/ 最小原型
+  │ ◀—— 读 .rmux_tasks/<task-id>/research/ 产物 ────│
+  │  审阅研究报告 + 跑 POC 验证
+```
+
+要点：
+- 研究 prompt 明确：需求、要搜的关键词/仓库、是否用 `gh search`/`gh api`、产物写到哪。
+- 产物二件套：研究报告（结论+依据+方案）+ 最小原型（可独立运行的 POC 代码），统一收在
+  `.rmux_tasks/<task-id>/research/`（见 `references/task-workflows.md` 目录规范）。
+- 完成后 `judge` 确认 agent 回 idle、读文件产物（不经 rmux，备屏完整）。
+
+### review-cycle：评审→修改→复核循环（到一致才停）
+
+适用：审阅一批代码改动，让多 agent 独立评审 → 主窗口按报告改代码 → 再复核 → 直到三方一致无必改项。
+
+```text
+主窗口                              agent codex/kimi/claude
+  │  待审代码改动（工作区/某提交）                     │
+  │  drive 每 agent: review prompt（写 review-<agent>.md）│
+  │ ────────────────────────────────────────────────▶│  独立评审 → 写 .rmux_tasks/<task-id>/review/review-<agent>.md
+  │ ◀── 读 review-codex/kimi/claude.md ──────────────│
+  │ 综合三份报告 → 按报告修改代码                     │
+  │  drive 每 agent: recheck prompt（写 r<N>-recheck-<agent>.md）│
+  │ ────────────────────────────────────────────────▶│  复核上轮修复 → 写 .rmux_tasks/<task-id>/recheck/<round>/
+  │ ◀── 读 r<N>-recheck-<agent>.md ──────────────────│        r<N>-recheck-<agent>.md
+  │ 三份 recheck 都以 AGREE: 开头（无 must-fix）？──否──▶(改代码→round+1 再 recheck 循环)  │
+  │          │是（一致达成）                          │
+  │          ▼                                        │
+  └── 循环终态：达成一致。循环中不关单元，终态才 close/recover
+```
+
+要点：
+- **不关闭执行单元**：循环全程保留单元，agent 会话/上下文不断，避免每轮重开；达成一致后才
+  `close`（或 `recover`）。
+- review 与 recheck 是两种产物：`review-<agent>.md`（首轮独立评审）、`r<N>-recheck-<agent>.md`
+  （复核上轮修复，round 递增、旧产物保留归档），统一在 `.rmux_tasks/<task-id>/review|recheck/`。
+- 循环退出条件：**三方 `recheck` 都以 `AGREE:` 开头**（= 无 must-fix）；设最大轮数防死循环。
+- review prompt 需内置「跳过凭据/密钥文件」（见 troubleshooting「agent 行为」）；
+- 长 prompt 避免 send-keys 截断：把完整指令写文件让 agent Read（见 troubleshooting「drive 相关」）。
 
 ## 关键踩坑
 

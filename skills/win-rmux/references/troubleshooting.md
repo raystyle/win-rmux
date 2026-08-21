@@ -24,6 +24,8 @@
 | 发了 prompt 但 agent 没动 | Enter 被吞（文本+Enter 同发、或时序被忽略） | `capture-pane` 看输入框；仍停留则单独重发 `Enter` |
 | capture 见 `❯ Press up to edit queued messages` | 之前重发导致同一 prompt 排队两次 | 先 `C-c` 清队列只发一次；**勿盲补发**（会执行两遍） |
 | `--wait quiet` 报 timed out | pane 仍 `working`（TUI 实际已就绪），指令可能已入输入框待提交 | **超时 ≠ 未发送**，勿重发同 prompt；`capture` 验证后只补 `Enter` |
+| 长 prompt 发送后不完整 / 被截断 / 排队 | send-keys 长文本不可靠（超长被打断入队） | 完整指令写文件（如 `.rmux_tasks/<task>/prompt.md`），`drive` 一条短指令 `Read <prompt路径> and follow it exactly` |
+| 找不到 agent 产生的产物文件 | 轮询了固定/旧文件名，命中上轮旧内容或遗漏本轮 | 用轮次前缀命名（`r<N>-<agent>.md`），或每轮 drive 前先清本 task 旧产物；轮询比对 `LastWriteTime` 晚于本轮 drive |
 | 补发 `Enter` 也不提交 | 可能 C-c 已把 prompt 清掉，或输入框状态异常 | `capture` 看输入框内容再决定；不要连发键 |
 | claude 深度思考时 CPU 不增、误判「未提交」 | CPU 法是进程累计值，深思考常驻低增量 | 用尾部状态 busy/ready（token 计数在涨=b busy）判活，CPU 只作辅助 |
 
