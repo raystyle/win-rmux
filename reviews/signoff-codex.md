@@ -1,1 +1,0 @@
-agent=codex | HEAD=cf2182e4b22d4beed52ea1e3912568ccbdfc03f6 (cf2182e) confirmed, working tree == HEAD (only reviews/ untracked), 3 scripts parse OK, guard coherent | AGREE: perfect/consistent final state (no correctness/corruption bug found).
