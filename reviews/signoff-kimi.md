@@ -1,0 +1,1 @@
+agent=kimi | HEAD=cf2182e4b22d4beed52ea1e3912568ccbdfc03f6 (working tree == HEAD, only reviews/ untracked; install-agent-hooks.ps1 / refresh-user-env.ps1 / win-rmux-agent-state.ps1 parse OK; SKILL.md guard coherent end-to-end) | AGREE: this is the consistent final state
