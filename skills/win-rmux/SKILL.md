@@ -4,7 +4,7 @@ license: MIT
 description: >-
   Drive codex/kimi/claude (extensible to pi/grok) as panes in one rmux session on
   Windows/pwsh using launch/locate/drive/observe/judge/recover-close primitives,
-  plus the research, review-cycle, and fast-review task workflows, in a two-over-one layout.
+  plus research (full + fast) and review-cycle (full + fast) task workflows, in a two-over-one layout.
   Use when coordinating multiple terminal agents inside a single execution unit
   (one visible Windows Terminal or a headless daemon).
 compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
@@ -302,7 +302,7 @@ rmux kill-session -t $unit     # 关执行单元（推荐默认；其它会话/d
 ## 任务原语（在六原语之上组合的标准工作流）
 
 > 六原语（launch/locate/drive/observe/judge/recover-close）是单步原子操作；**任务原语**是
-> 面向实际任务的标准工作流（research / review-cycle / 快速 review），复用六原语自动推进。
+> 面向实际任务的标准工作流（research / 快速 research / review-cycle / 快速 review），复用六原语自动推进。
 > 详细实现、产物规范、循环条件见 `references/task-workflows.md`。
 
 ### research：研究任务（产研究报告 + 最小原型 POC）
@@ -325,6 +325,13 @@ graph LR
 - 产物二件套：研究报告（结论+依据+方案）+ 最小原型（可独立运行的 POC 代码），统一收在
   `.rmux_tasks/<task-id>/research/`（见 `references/task-workflows.md` 目录规范）。
 - 完成后 `judge` 确认 agent 回 idle、读文件产物（不经 rmux，备屏完整）。
+
+### 快速 research：单 agent 轻量变体（一轮即止）
+
+适用：只想快速查清一件事、拿一份结论即可，无需 POC、无需多轮追问。只用一个 agent（默认
+codex）、一轮 research、无迭代；结论由主窗口自行判断采用。产物落
+`.rmux_tasks/<task-id>/research/research-<topic>.md`（POC 可选），复用 research 首轮
+prompt 模板。详见 `references/task-workflows.md` 1.4。
 
 ### review-cycle：评审->修改->复核循环（到一致才停）
 

@@ -1,13 +1,13 @@
-# win-rmux 任务原语详细实现（research / review-cycle / 快速 review）
+# win-rmux 任务原语详细实现（research / 快速 research / review-cycle / 快速 review）
 
-> 主 SKILL「任务原语」段只有概览；本文件是三类任务工作流的**完整实现**（research /
-> review-cycle / 快速 review 单 agent 变体）：驱动步骤、prompt 模板、产物规范、循环退出条件、
-> 踩坑。踩坑的"排查"统一见 `troubleshooting.md`（唯一坑维护点），本文只给"怎么把任务跑起来"
-> 的标准步骤 + 必要提示。异常排查去 troubleshooting。
+> 主 SKILL「任务原语」段只有概览；本文件是四类任务工作流的**完整实现**（research 完整 +
+> 快速 research 单 agent 变体 + review-cycle 完整 + 快速 review 单 agent 变体）：驱动步骤、
+> prompt 模板、产物规范、循环退出条件、踩坑。踩坑的"排查"统一见 `troubleshooting.md`
+> （唯一坑维护点），本文只给"怎么把任务跑起来"的标准步骤 + 必要提示。异常排查去 troubleshooting。
 
 ## 0. 前置
 
-三类任务都先走六原语：`launch`（建执行单元，上 2 下 1：codex/kimi/claude）-> `locate`
+四类任务都先走六原语：`launch`（建执行单元，上 2 下 1：codex/kimi/claude）-> `locate`
 复核 pane -> 需要时 `recover` 弹前台看板。产物走**写文件**（备屏 TUI 完整帧不可从外部
 读，长产物永久丢，见 troubleshooting「TUI 备屏」）。
 
@@ -71,6 +71,31 @@ Reply DONE <你名> when written.
 - 长 prompt：不要 send-keys 一条超长：写入 `.rmux_tasks/<task-id>/prompt.md`（或研究专属
   路径），`drive` 一个短指令让它 Read 该文件（见 troubleshooting「drive 相关」长 prompt 截断）。
 - 单 agent 研究类只看一个 pane 产物即够；多子题分工时按 pane 索引对应产物。
+
+### 1.4 快速 research（单 agent 轻量变体）
+
+> 何时用：只想快速查清一件事、拿一份结论即可，不需要最小原型 POC、也不想开满多个 pane 或
+> 多轮追问。用 **1 个 agent、单轮、无迭代**；结论由主窗口自行判断采用。
+
+```text
+1. guard（前置守卫，同 research）+ launch 单 pane：会话名 rs-<task-id>（research 任务用
+   rs- 前缀，见 0.1 命名分类），只建 1 个 pane（默认 codex，--no-alt-screen 便于
+   capture/observe；可按需换 kimi/claude）
+2. 写好研究指令文件 .rmux_tasks/<task-id>/research/prompt.md（同 1.3 模板；去掉 POC
+   那节，或把 POC 标成可选）
+3. drive 一条短指令（带 agent 名 resolver，勿让 agent 自己猜产物名）：
+   "You are <agent>. Read .rmux_tasks/<task-id>/research/prompt.md and write your report
+   to .rmux_tasks/<task-id>/research/research-<topic>.md"
+4. observe/judge 轮询单一报告文件出现（固定 research-<topic>.md）-> 读文件（不经 rmux，
+   备屏完整）
+5. 主窗口读结论 -> 自行判断是否足够 -> close（不 drive 追问、不跑 POC 验证循环）
+```
+
+- 与完整 research 的区别：**单一 agent、单一轮次、默认无 POC（或 POC 可选）、无迭代追问**；
+  只在"拿一份结论即可、是否展开由主窗口自己定"的场景用。
+- 产物仍落 `.rmux_tasks/<task-id>/research/`，命名 research-<topic>.md（单文件）。
+- 单 pane 启动时 launcher 只跑 `new-session -d`（不带 `-A`，避免静默附加残留会话）；不
+  `split-window`。
 
 ## 2. review-cycle：评审->修改->复核循环
 

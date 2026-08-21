@@ -16,7 +16,7 @@ win-rmux/
     win-rmux/       skill 本体（agentskills 标准：SKILL.md frontmatter + 操作原语；由
                     gh skill install 整目录安装，缺任一子目录守卫都会失败）
       SKILL.md      skill 入口：六原语(launch/locate/drive/observe/judge/recover.close)
-                    + 三任务原语(research / review-cycle / 快速 review) + 前置守卫 + yolo 免交互表
+                    + 四任务原语(research / 快速 research / review-cycle / 快速 review) + 前置守卫 + yolo 免交互表
       hooks/
         win-rmux-agent-state.ps1  agent 状态上报 hook（working/blocked/idle 回写
                                   AGENT_STATE_<name>，供 judge 读取；由 scripts/
