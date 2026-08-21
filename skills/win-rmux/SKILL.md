@@ -1,5 +1,6 @@
 ---
 name: win-rmux
+license: MIT
 description: >-
   Drive codex/kimi/claude (extensible to pi/grok) as panes in one rmux session on
   Windows/pwsh using launch/locate/drive/observe/judge/recover-close primitives,
