@@ -68,7 +68,15 @@ function Remove-KimiHookBlocks([string]$Content, [string]$EscCmd) {
 function Install-JsonHooks([string]$Path, [string]$Label, [string[]]$Events, [string]$Matcher = '') {
   Write-Host "[$Label] $Path"
   $content = if (Test-Path $Path) { Get-Content -Raw $Path } else { '{}' }
-  $root = $content | ConvertFrom-Json -AsHashtable
+  if (-not $content -or -not $content.Trim()) { $content = '{}' }   # 空/空白文件兜底
+  try {
+    $root = $content | ConvertFrom-Json -AsHashtable
+  } catch {
+    Write-Warning "  ${Label}: 无效 JSON，从 {} 重建（备份原文件）"
+    Backup $Path
+    $root = @{}
+  }
+  if (-not $root.ContainsKey('hooks')) { $root['hooks'] = @{} }
   $changed = $false
   foreach ($ev in $Events) {
     # Codex 对 SessionEnd 钩子有 3s 硬上限（超了会被钳制并告警），其余事件保持 10s。
@@ -76,6 +84,8 @@ function Install-JsonHooks([string]$Path, [string]$Label, [string[]]$Events, [st
     if (Add-JsonHook $root $ev $HookCmd $Matcher $timeout) { $changed = $true }
   }
   if (-not $changed) { Write-Host '  already installed'; return }
+  $dir = Split-Path $Path -Parent
+  if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   Backup $Path
   $json = $root | ConvertTo-Json -Depth 20
   [System.IO.File]::WriteAllText($Path, $json, [System.Text.UTF8Encoding]::new($false))
@@ -84,6 +94,8 @@ function Install-JsonHooks([string]$Path, [string]$Label, [string[]]$Events, [st
 
 function Install-Kimi {
   $path = Join-Path $HOME '.kimi-code\config.toml'
+  $dir  = Split-Path $path -Parent
+  if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   Write-Host "[kimi] $path"
   $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
   $esc = $HookCmd.Replace('\','\\').Replace('"','\"')
@@ -112,20 +124,50 @@ function Install-Kimi {
 
 function Enable-CodexHooksFeature {
   $path = Join-Path $HOME '.codex\config.toml'
+  $dir  = Split-Path $path -Parent
+  if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   $marker = '# win-rmux: enable agent-state hooks'
   $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
-  if ($content.Contains($marker)) { Write-Host "[codex] config.toml hooks already enabled"; return }
+  if ($content -and $content.Contains('hooks = true')) { Write-Host "[codex] config.toml hooks already enabled"; return }
   Write-Host "[codex] $path"
   Backup $path
-  $block = "`n$marker`n[features]`nhooks = true`n"
-  [System.IO.File]::AppendAllText($path, $block, [System.Text.UTF8Encoding]::new($false))
-  Write-Host '  config.toml hooks enabled'
+  $newLine = "${marker}`nhooks = true`n"
+  if ($content -match '(?m)^\[features\]\s*$') {
+    # 已有 [features] 表：在其表体末尾插入（表内除 hooks 外可能还有别的键），不追加重复表头
+    $lines = $content -split "`r?`n"
+    $out = New-Object System.Collections.Generic.List[string]
+    $inFeatures = $false
+    $inserted = $false
+    foreach ($ln in $lines) {
+      if ($ln -match '^\s*\[features\]\s*$') { $inFeatures = $true; $out.Add($ln); continue }
+      if ($inFeatures -and $ln -match '^\s*\[.*\]\s*$') {
+        # 遇到下一个表头：把 hooks 插到本表尾（表体末尾）
+        $out.Add(($newLine -replace '\n$',''))
+        $out.Add('')
+        $inserted = $true
+        $inFeatures = $false
+      }
+      $out.Add($ln)
+    }
+    if ($inFeatures) { $out.Add(($newLine -replace '\n$','')); $inserted = $true }
+    [System.IO.File]::WriteAllText($path, ($out -join "`r`n"), [System.Text.UTF8Encoding]::new($false))
+    Write-Host '  [features] 表内已插入 hooks = true'
+  } else {
+    # 无 [features] 表：追加完整块
+    [System.IO.File]::AppendAllText($path, "`n$marker`n[features]`nhooks = true`n", [System.Text.UTF8Encoding]::new($false))
+    Write-Host '  config.toml 追加 [features] hooks = true'
+  }
 }
 
 Write-Host "== win-rmux agent hook 检测/安装 =="
 Write-Host "hook script: $HookScript"
-Install-JsonHooks (Join-Path $HOME '.codex\hooks.json') 'codex' @('SessionStart','UserPromptSubmit','PreToolUse','PermissionRequest','Stop','SessionEnd')
-Enable-CodexHooksFeature
-Install-JsonHooks (Join-Path $HOME '.claude\settings.json') 'claude' @('SessionStart','UserPromptSubmit','PreToolUse','PermissionRequest','Stop') '*'
-Install-Kimi
-Write-Host "done"
+$fail = 0
+try    { Install-JsonHooks (Join-Path $HOME '.codex\hooks.json') 'codex' @('SessionStart','UserPromptSubmit','PreToolUse','PermissionRequest','Stop','SessionEnd') }
+catch  { Write-Warning "codex: $($_.Exception.Message)"; $fail++ }
+try    { Enable-CodexHooksFeature }
+catch  { Write-Warning "codex config.toml: $($_.Exception.Message)"; $fail++ }
+try    { Install-JsonHooks (Join-Path $HOME '.claude\settings.json') 'claude' @('SessionStart','UserPromptSubmit','PreToolUse','PermissionRequest','Stop') '*' }
+catch  { Write-Warning "claude: $($_.Exception.Message)"; $fail++ }
+try    { Install-Kimi }
+catch  { Write-Warning "kimi: $($_.Exception.Message)"; $fail++ }
+if ($fail -gt 0) { Write-Warning "完成，但有 $fail 项失败（其余已装）" } else { Write-Host 'done' }

@@ -38,6 +38,9 @@ $agents = @(
 ## 前置守卫（每次先跑）
 
 ```powershell
+# 指定本 skill 安装目录（脚本内联执行时 $PSScriptRoot 为空，必须显式给出）。
+# 例：C:\Users\<user>\.claude\skills\win-rmux（Claude）、~\.codex\skills\win-rmux（Codex）等
+$SkillDir = 'C:\Users\ray\.claude\skills\win-rmux'   # ← 按本机安装路径填
 if (Get-Process rmux -ErrorAction SilentlyContinue) {
   if (-not (rmux list-sessions 2>$null)) { rmux kill-server }   # 污染 daemon 守卫
 }
@@ -46,10 +49,13 @@ $env:TERM = 'xterm-256color'; $env:COLORTERM = 'truecolor'
 $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
 # User 环境变量同步（宿主常不加载 User env，agent 会缺 DEEPSEEK_API_KEY 等 API key；
 # 必须 dot-source，子进程调用无效）
-. "$PSScriptRoot/scripts/refresh-user-env.ps1"
+. "$SkillDir/scripts/refresh-user-env.ps1"
 # agent 状态 hook 检测/安装（幂等 + 路径感知；首次会写 codex/kimi/claude 的 hook 配置）
-pwsh -NoProfile -File "$PSScriptRoot/scripts/install-agent-hooks.ps1"
+pwsh -NoProfile -File "$SkillDir/scripts/install-agent-hooks.ps1"
 ```
+
+> `$PSScriptRoot` 仅在 `.ps1` 文件内定义；守卫作为「粘贴运行」片段在交互 pwsh 执行时其为空，
+> 必须改用显式 `$SkillDir`（2026-08-21 三 agent review 一致指出）。
 
 hook 状态通道见 `references/hooks.md`；安装后 agent 会在 `working/blocked/idle` 变化时回写
 `AGENT_STATE_<name>`，`judge` 用 `show-environment` 读取。
@@ -96,8 +102,13 @@ function Get-AgentPane([string]$name) {
   "${unit}:0.$i"
 }
 $p = Get-AgentPane 'codex'
-# 先发文本、再单独发 Enter（实测 Enter 与文本同发会被吞，不提交）
-rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -- '<ascii-prompt>'
+# 目标 pane 校验：确认当前启动命令即该 agent（防 respawn 重排/崩溃后错位）
+if ((rmux list-panes -t $p -F '#{pane_current_command}' 2>$null) -notmatch 'codex') {
+  Write-Warning "target pane $p cmd 非 codex，先 locate 确认再 drive"
+}
+# 先发文本、再单独发 Enter（实测 Enter 与文本同发会被吞，不提交）；
+# -l 走字面量，含空格/特殊字符的 prompt 才不被 token 化截断
+rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- '<ascii-prompt>'
 rmux send-keys -t $p -- Enter
 ```
 
@@ -150,7 +161,9 @@ rmux show-environment -t $unit AGENT_STATE_codex   # idle | working | blocked（
 
 ```powershell
 $before = (Get-Process claude -ErrorAction SilentlyContinue).CPU
-rmux send-keys -t (Get-AgentPane 'claude') -- 'prompt' Enter
+# 同样走两段式：先文本(-l)再单独 Enter，与 drive 规则一致
+rmux send-keys -t (Get-AgentPane 'claude') -l -- 'prompt'
+rmux send-keys -t (Get-AgentPane 'claude') -- Enter
 Start-Sleep -Seconds 2
 $after = (Get-Process claude -ErrorAction SilentlyContinue).CPU
 if ($after - $before -gt 0.5) { 'submitted' }

@@ -82,7 +82,9 @@ tmux 兼容的 `send-keys` 在 rmux 里额外支持（与 wait-pane 同语义）
 - `--wait-pane-exit`
 - `--stable-for <DURATION>` / `--timeout <DURATION>`
 
-示例：`rmux send-keys -t dev --wait quiet --stable-for 800ms --timeout 15s -- '/status' Enter`
+示例（两段式，Enter 单独发；短斜杠命令也可同发，长 prompt 必须拆分）：
+`rmux send-keys -t dev --wait quiet --stable-for 800ms --timeout 15s -l -- '/status'`
+`rmux send-keys -t dev -- Enter`
 
 ## 脚本化 / SDK / control-mode
 

@@ -160,7 +160,8 @@ Start-Process -FilePath $wt -ArgumentList $wtArgs -WindowStyle Minimized
 
 # 2. 从这边操作（同窗格套路）
 rmux list-clients                          # 检查 [宽x高 term] 标记：dumb=无色彩
-rmux send-keys -t claude --wait quiet --stable-for 800ms --timeout 15s -- '/status' Enter
+rmux send-keys -t claude --wait quiet --stable-for 800ms --timeout 15s -l -- '/status'
+rmux send-keys -t claude -- Enter          # Enter 单独发（与文本同发会被吞）
 rmux capture-pane -t claude -p
 ```
 

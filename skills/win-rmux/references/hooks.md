@@ -21,18 +21,18 @@ rmux show-environment -t $unit AGENT_STATE_codex   # -> AGENT_STATE_codex=workin
 -e "WIN_RMUX_UNIT=$unit" -e "WIN_RMUX_AGENT=$($agent.name)"
 ```
 
-## 三 agent hook 事件（herdr 源码做法）
+## 三 agent hook 事件（与 install-agent-hooks.ps1 实际注册一致）
 
-| agent | hook 配置 | 事件 | 上报 |
+| agent | hook 配置 | 安装脚本注册事件 | 上报 |
 | --- | --- | --- | --- |
-| kimi | kimi config | 原生 `session/working/blocked/idle` | 直接按状态上报 |
-| codex | `~/.codex/hooks.json` | `SessionStart` / `PermissionRequest` | SessionStart→session id；PermissionRequest→blocked |
-| claude | `~/.claude/settings.json` | `SessionStart` / tool-use / `SubagentStop` | tool-use→working；SubagentStop 忽略 |
+| codex | `~/.codex/hooks.json` | `SessionStart`/`UserPromptSubmit`/`PreToolUse`/`PermissionRequest`/`Stop`/`SessionEnd` | SessionStart→idle；UserPromptSubmit/PreToolUse→working；PermissionRequest→blocked；SessionEnd→idle；Stop 实测不触发 |
+| claude | `~/.claude/settings.json` | `SessionStart`/`UserPromptSubmit`/`PreToolUse`/`PermissionRequest`/`Stop`（未注册 `SubagentStop`） | SessionStart→idle；UserPromptSubmit/PreToolUse→working |
+| kimi | `~/.kimi-code/config.toml` | `SessionStart`/`UserPromptSubmit`/`PreToolUse`/`PermissionRequest`/`Stop`/`Interrupt` | 同上（codex/claude 风格事件集） |
 
 实测补充（重要）：
 
 - codex hook 需要信任；headless 下必须加 `--dangerously-bypass-hook-trust`，否则静默跳过。
-- claude 的 JSON hook 条目需要 `matcher`（`Stop`/`PreToolUse` 等用 `matcher: "*"`），否则可能不触发。
+- claude 的 JSON hook 条目需要 `matcher`（`Stop`/`PreToolUse` 等用 `matcher: "*"`），否则可能不触发。注：`PermissionRequest` 并非 Claude Code 标准事件（标准集见 `claude -h`），claude 可能永不报 `blocked`。
 - codex 的 `Stop` hook 实测不触发：`UserPromptSubmit→working` 正常、`Stop→idle` 不写
   （2026-08-21，kimi/claude 正常），模型调用失败/异常中断后状态会卡 `working`。
   judge codex 用进程 CPU 回退，或手动 `rmux set-environment -t $unit AGENT_STATE_codex idle` 清理。
