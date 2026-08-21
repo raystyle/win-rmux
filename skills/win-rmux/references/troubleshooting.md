@@ -69,6 +69,14 @@
 | `--wait-next-text`/`--wait-visible-text` 无效 | 本版本 `--wait` 只支持 `quiet`；它们是独立参数不是 `--wait` 值 | 等待用 `--wait quiet` + `--stable-for` + `--timeout`；其余参数用独立开关 |
 | `rmux claude`（teammate 模式）内层会话不可见 | 自动 `--teammate-mode tmux` + 私有 tmux shim，socket 每实例随机，外层看不到内层 | 调试用 `claude -p`（纯文本可捕获）或让用户目视窗格 |
 
+## 七、安装 / 部署
+
+| 现象 | 原因 | 排查 / 处理 |
+| --- | --- | --- |
+| `gh skill install` 只装了一半文件（如 references 只剩 8/18，缺 task-workflows.md、scripts/ 等） | 安装输出走了 PowerShell 管道（`2>&1 \| ...`），触发 Go `exec.WaitDelay` 把复制过程中断；截断点常在字母序靠后的文件 | 安装输出**重定向到文件**（`*> $log`）再读；装完对比源目录核对完整清单 |
+| 安装后以为成功，实际文件不全 | 只查了 `SKILL.md` 的 metadata（`github-pinned` 等），没核对文件清单 | 装完必须 `Get-ChildItem -Recurse` 对比源目录（`Compare-Object`），文件数一致才算成功 |
+| `cannot use --pin with an inline @version` | `--pin <tag>` 与 skill 名的 `@version` 后缀不能同时传 | 二选一：`win-rmux@v0.1.2` 或 `win-rmux --pin v0.1.2` |
+
 ## 维护约定
 
 - 新增踩坑一律追加到本文对应 section；不要散落进主 SKILL 或其它 references。
