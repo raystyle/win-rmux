@@ -271,7 +271,7 @@ $argv = @('split-window','-f','-v','-d','-t',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=
 
 ```powershell
 $wd = (Get-Location).Path   # host 侧 $wd 与 launcher 内是两份独立副本，两处都要给
-$wtArgs = "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -ExecutionPolicy Bypass -File `"<launcher.ps1绝对路径>`""
+$wtArgs = "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -ExecutionPolicy Bypass -File `"<launcher.ps1绝对路径>`" -unit `"$unit`""
 Start-Process (Get-Command wt.exe).Source -ArgumentList $wtArgs -WindowStyle Minimized
 Start-Sleep -Seconds 10
 rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane_current_command}"

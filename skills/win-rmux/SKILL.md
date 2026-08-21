@@ -134,7 +134,7 @@ if (@(rmux list-sessions -F '#{session_name}' 2>$null | Where-Object { $_ }) -co
 
 ```powershell
 # 1. 弹 wt（宿主在 job object 内必须走这步）跑 launcher：new-session + split-window -h + split-window -f -v
-Start-Process (Get-Command wt.exe).Source -ArgumentList "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -File `"<launcher.ps1绝对路径>`"" -WindowStyle Minimized
+Start-Process (Get-Command wt.exe).Source -ArgumentList "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -File `"<launcher.ps1绝对路径>`" -unit `"$unit`"" -WindowStyle Minimized
 Start-Sleep -Seconds 10
 rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane_current_command}"   # locate 复核
 # 2. 布局：3 = 上 2 下 1；2 = -h 左右；1 = 单 pane；>3 前两个上排、其余 -f -v 全宽下堆
