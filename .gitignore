@@ -1,5 +1,6 @@
-# Reasonix 桌面运行时数据（会话/任务元数据，不入库）
+# Reasonix 桌面运行时数据（会话/任务元数据/配置，不入库）
 .reasonix/
+reasonix.toml
 
 # win-rmux 的临时任务工作区（research/review-cycle 产物，不入库）
 .rmux_tasks/
