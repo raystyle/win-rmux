@@ -24,8 +24,8 @@
 | --- | --- | --- |
 | 发了 prompt 但 agent 没动 | Enter 被吞（文本+Enter 同发、或时序被忽略） | `capture-pane` 看输入框；仍停留则单独重发 `Enter` |
 | capture 见 `❯ Press up to edit queued messages` | 之前重发导致同一 prompt 排队两次 | 先 `C-c` 清队列只发一次；**勿盲补发**（会执行两遍） |
-| `--wait quiet` 报 timed out | pane 仍 `working`（TUI 实际已就绪），指令可能已入输入框待提交 | **超时 ≠ 未发送**，勿重发同 prompt；`capture` 验证后只补 `Enter` |
-| prompt 发进了**错误的 agent**（目标 pane 身份与预期不符） | `display-message '#{pane_current_command}'`/`list-panes` 对 TUI agent **不可靠**：会报错/滞后，甚至把 kimi 的 pane 标成 codex；按 pane 索引（`0.$i`）发键随后悔 | ① 启动后用 `pane_pid` 反查**真实进程名**定位（`Get-CimInstance Win32_Process -Filter "ProcessId=$pid"`），别信 `pane_current_command`；② 每 pane 发键前 `capture` 确认屏内是目标 agent；③ 布局/pane 变动后重查身份，勿沿用旧索引。（2026-08-21 实测） |
+| `--wait quiet` 报 timed out | pane 仍 `working`（TUI 实际已就绪），指令可能已入输入框待提交 | **超时 != 未发送**，勿重发同 prompt；`capture` 验证后只补 `Enter` |
+| prompt 发进了**错误的 agent**（目标 pane 身份与预期不符） | `display-message '#{pane_current_command}'`/`list-panes` 对 TUI agent **不可靠**：会报错/滞后，甚至把 kimi 的 pane 标成 codex；按 pane 索引（`0.$i`）发键随后悔 | (1) 启动后用 `pane_pid` 反查**真实进程名**定位（`Get-CimInstance Win32_Process -Filter "ProcessId=$pid"`），别信 `pane_current_command`；(2) 每 pane 发键前 `capture` 确认屏内是目标 agent；(3) 布局/pane 变动后重查身份，勿沿用旧索引。（2026-08-21 实测） |
 | 长 prompt 发送后不完整 / 被截断 / 排队 | send-keys 长文本不可靠（超长被打断入队） | 完整指令写文件（如 `.rmux_tasks/<task>/prompt.md`），`drive` 一条短指令 `Read <prompt路径> and follow it exactly` |
 | 找不到 agent 产生的产物文件 | 轮询了固定/旧文件名，命中上轮旧内容或遗漏本轮 | 用轮次前缀命名（`r<N>-<agent>.md`），或每轮 drive 前先清本 task 旧产物；轮询比对 `LastWriteTime` 晚于本轮 drive |
 | 补发 `Enter` 也不提交 | 可能 C-c 已把 prompt 清掉，或输入框状态异常 | `capture` 看输入框内容再决定；不要连发键 |

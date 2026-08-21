@@ -217,6 +217,10 @@ wt 是 UWP，进程树脱离 job，把 launcher 放 wt 内跑即稳定。launche
 `launch-unit.ps1`（当前写入目录为 `$wd`）：
 
 ```powershell
+param(
+  [string]$unit = $(throw 'launcher: 必须传 -unit <唯一会话名，如 rs-<task-id>>'),
+  [switch]$probeOnly
+)
 $ErrorActionPreference = 'Continue'
 $env:RMUX_DISABLE_TINY_CLI = '1'
 Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
@@ -224,14 +228,36 @@ $env:TERM = 'xterm-256color'; $env:COLORTERM = 'truecolor'
 $mu = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
 $env:Path = (($mu -split ';') + ($env:Path -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
 
-$unit = 'execution-unit'   # 覆盖点：与调用方保持一致
+# ===== 覆盖点 =====
+# $unit 必须传「每个任务独立唯一」的会话名（如 rs-20260821-wsl），不能复用固定名 / 已有会话名，
+# 否则会在历史会话上叠窗格（多任务窗格混堆、agent 进程残留）。
 $wd   = (Get-Location).Path
 $agents = @(
   @{ name = 'codex';  cmd = 'codex';  args = @('--dangerously-bypass-approvals-and-sandbox', '--dangerously-bypass-hook-trust', '--no-alt-screen') }
   @{ name = 'kimi';   cmd = 'kimi';   args = @('--auto') }
   @{ name = 'claude'; cmd = 'claude'; args = @('--dangerously-skip-permissions') }
 )
-if (@(rmux list-sessions -F '#{session_name}' 2>$null) -contains $unit) { rmux kill-session -t $unit }
+
+# ===== 0. 环境探针（第一步，必做）：daemon + 已有会话，绝不静默清/叠 =====
+$daemonUp = [bool](Get-Process rmux -ErrorAction SilentlyContinue)
+$existing = @(rmux list-sessions -F '#{session_name}' 2>$null | Where-Object { $_ })   # 全量已有会话
+$unitExists = $existing -contains $unit
+"环境探针: daemon=$daemonUp 现有会话=[$($existing -join ', ')] 目标[$unit]已存在=$unitExists"
+if ($probeOnly) { "探针结束（--probeOnly），不改动任何会话。"; exit 0 }
+
+if ($unitExists) {
+  # 撞名：绝不静默 kill、绝不往已有会话叠窗格。询问策略。
+  $c = Read-Host "会话 [$unit] 已存在（可能是历史任务残留）。[a]中止 [c]清理后重建" -ErrorAction SilentlyContinue
+  if ($c -notin @('c','C','y','Y')) { "已中止，未改动 [$unit]。可用 list-sessions 查看后手动清理。"; exit 1 }
+  "确认清理旧会话 [$unit]..."
+  rmux kill-session -t $unit 2>$null
+  Start-Sleep -Milliseconds 500
+}
+if (@(rmux list-sessions -F '#{session_name}' 2>$null | Where-Object { $_ }) -contains $unit) {
+  "错误: [$unit] 仍存在但不在本会话，拒绝触碰 -> 请手动 kill-session；未改动。"; exit 1
+}
+
+# ===== 建单元：保证 $unit 是全新会话，三 agent 上 2 下 1 =====
 $argv = @('new-session','-d','-s',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=$unit",'-e',"WIN_RMUX_AGENT=$($agents[0].name)",$agents[0].cmd) + $agents[0].args
 & rmux @argv
 $argv = @('split-window','-h','-d','-t',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=$unit",'-e',"WIN_RMUX_AGENT=$($agents[1].name)",$agents[1].cmd) + $agents[1].args

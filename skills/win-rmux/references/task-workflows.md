@@ -12,8 +12,8 @@
 
 ## 0.1 执行单元命名分类（标准，一眼看出"是执行单元 + 跑什么任务"）
 
-每个执行单元（rmux session 名 + wt 窗口标题）必须体现：**① 是执行单元；② 哪类任务；
-③ 哪个具体任务（task-id）**。统一格式，避免多单元并存时分不清。
+每个执行单元（rmux session 名 + wt 窗口标题）必须体现：**(1) 是执行单元；(2) 哪类任务；
+(3) 哪个具体任务（task-id）**。统一格式，避免多单元并存时分不清。
 
 ```text
 session 名 : <type>-<task-id或短名>        例：rs-20260821-wsl（研究）/ rv-20260821-features（评审复核）
@@ -25,7 +25,9 @@ pane 内   : WIN_RMUX_AGENT=<agent>（codex/kimi/claude）不重复，unit 用 s
 - session 名用 `rs-`/`rv-` + task-id（.rmux_tasks 的第 1 段工具缩写一致）；task-id 见
   `.rmux_tasks/<task-id>`。
 - wt 标题带 `[research]`/`[review]` 标签 + 短主题，attach 时一眼可辨。
-- pane 不需编码单元--unit 即 session 名，`Get-AgentPane` 按 `WIN_RMUX_AGENT` 寻址即可。
+- pane 不需编码单元：unit 即 session 名，`Get-AgentPane` 按 `WIN_RMUX_AGENT` 寻址即可。
+- **撞名/复用**：目标 session 名已存在时，**绝不往它上面叠窗格、绝不静默 kill**；默认中止并提示
+  手动处理，或用 `kill-session -t <冲突名>` 显式清理后再建（见 SKILL.md「环境探针」）。
 
 ## 1. research：研究任务
 
@@ -162,22 +164,22 @@ Skip secret/credential files.
 
 ```text
 <project>/
-└─ .rmux_tasks/                              # 任务归档根（运行时产物；入库与否按项目约定，win-rmux 本体入库作归档）
-   ├─ README.md                         # 归档索引（任务总览：id/标题/阶段/结论/关联提交）
-   └─ <task-id>/                        # 每个任务一个目录；task-id = <工具>-<日期>-<短名>，如 r-20260821-wsl 或 v-20260821-features
-      ├─ prompt.md                      # 本轮/本任务主指令文件（research 或 review 指令，供 agent Read 防截断）
-      ├─ research/                      # 【研究任务】阶段一：研究
-      │  ├─ research-<topic>.md         # 研究报告（结论/依据/方案/取舍）
-      │  └─ poc-<topic>/                # 最小原型 POC（可独立运行 + 一句怎么跑）
-      ├─ review/                        # 【评审任务】阶段一：首轮独立评审
-      │  ├─ review-codex.md
-      │  ├─ review-kimi.md
-      │  └─ review-claude.md
-      └─ recheck/<round>/               # 【评审任务】复核循环（round = 1 起递增）
-         ├─ r<N>-prompt.md              # 第 N 轮指令文件（三 agent 共用同一份）
-         ├─ recheck-codex.md
-         ├─ recheck-kimi.md
-         └─ recheck-claude.md
+  .rmux_tasks/                          # 任务归档根（运行时产物；入库与否按项目约定，win-rmux 本体入库作归档）
+    README.md                           # 归档索引（任务总览：id/标题/阶段/结论/关联提交）
+    <task-id>/                          # 每个任务一个目录；task-id = <工具>-<日期>-<短名>，如 r-20260821-wsl 或 v-20260821-features
+      prompt.md                         # 本轮/本任务主指令文件（research 或 review 指令，供 agent Read 防截断）
+      research/                         # 研究任务：阶段一 研究
+        research-<topic>.md             # 研究报告（结论/依据/方案/取舍）
+        poc-<topic>/                    # 最小原型 POC（可独立运行 + 一句怎么跑）
+      review/                           # 评审任务：阶段一 首轮独立评审
+        review-codex.md
+        review-kimi.md
+        review-claude.md
+      recheck/<round>/                  # 评审任务：复核循环（round = 1 起递增）
+        r<N>-prompt.md                  # 第 N 轮指令文件（三 agent 共用同一份）
+        recheck-codex.md
+        recheck-kimi.md
+        recheck-claude.md
 ```
 
 编码规范（严格）：

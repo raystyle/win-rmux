@@ -22,7 +22,7 @@ compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
 
 - **执行单元（Execution Unit）** = 一个 rmux 会话，承载 N 个 agent 各占一个 pane；默认 3 个 codex/kimi/claude，上 2 下 1。
 - **两种模式**：`Visible=$true`（默认，前台弹 wt 可见）；`Visible=$false`（后台 headless 纯 rmux 驱动）。
-- **六原语**：launch / locate / drive / observe / judge / recover·close。
+- **六原语**：launch / locate / drive / observe / judge / recover-close。
 - 寻址按 agent 名，不硬编码 pane 索引；未来加 pi/grok 只改 `$agents`。
 
 ## Quick start（端到端最小路径）
@@ -101,6 +101,35 @@ hook 状态通道见 `references/hooks.md`；安装后 agent 会在 `working/blo
 > 把整套 launch 放进 wt 内执行即稳定。launcher **不要**含 `attach-session`（否则 wt 卡前台），
 > 建好后宿主 `locate` 复核，`Visible` 时单独 recover 弹 attach。
 
+### 环境探针（launch 第一步，必做）
+
+> **不得在历史/已有会话上叠窗格**。多任务并存时，若每次都往同一个会话 `split-window`，会堆出
+> 多批 agent 窗格+进程残留（实测：一个会话堆到 9 窗格、4 个 kimi + 4 个 claude + 1 个 codex 并存）。
+> launch 前必须先探针：
+
+```powershell
+# 0. 环境探针：daemon 是否在跑、有哪些已有会话 - 只读，不改动任何会话
+rmux list-sessions -F '#{session_name}'              # 当前所有会话
+# 若有 rmux 进程但 list-sessions 为空 -> daemon 在但无任务，可直接建新会话
+
+# 1. 本任务会话名必须「独立唯一」，用 task-id 命名（见 task-workflows 命名规范）：
+#    $unit = "rs-$(Get-Date -Format yyyyMMdd)-<topic>"   # 或 rv-...（评审）
+#    绝不复用固定名（execution-unit / research 等）
+
+# 2. 撞名处理：目标 $unit 已存在 -> 询问清理还是中止，绝不静默 kill、绝不追加窗格
+if (@(rmux list-sessions -F '#{session_name}' 2>$null | Where-Object { $_ }) -contains $unit) {
+  $c = Read-Host "会话 [$unit] 已存在（可能是历史任务残留）。[a]中止 [c]清理后重建"
+  if ($c -notin @('c','C')) { "已中止，未触碰 [$unit]"; exit }
+  rmux kill-session -t $unit
+}
+```
+
+- **每个任务 = 一个新会话**（唯一 task-id 命名），任务结束用 `kill-session -t $unit` scoped 关闭；
+  不要跨任务无限叠加窗格。
+- 清理他人/历史会话**必须显式指出会话名**再 `kill-session -t <名>`；从不用无参 `kill-server`
+  （会误杀其它任务的会话）。
+- launcher 已把上述探针内置（见 `references/rmux-usage.md`）；此处是规范说明。
+
 最简示意（完整 launcher 脚本见 `references/rmux-usage.md`）：
 
 ```powershell
@@ -137,7 +166,7 @@ function Get-AgentPane([string]$name) {
   "${unit}:0.$i"
 }
 $p = Get-AgentPane 'codex'
-# ① 目标 pane 校验：用 pane_pid 反查**真实进程名**（display-message '#{pane_current_command}' 对 TUI agent 不可靠，
+# [1] 目标 pane 校验：用 pane_pid 反查**真实进程名**（display-message '#{pane_current_command}' 对 TUI agent 不可靠，
 #    可能把 kimi 标成 codex；见 references/troubleshooting.md「二、drive 相关」）；不匹配即 **throw 中止发送**。
 #    注：假设 agent 是 pane 的直接进程；若经 pwsh/cli 包装启动，需再向下解析子进程 PID。
 $pp = rmux display-message -p -t $p -F '#{pane_pid}' 2>$null
@@ -145,7 +174,7 @@ $real = (Get-CimInstance Win32_Process -Filter "ProcessId=$pp" -ErrorAction Sile
 if ($real -notmatch 'codex') {
   throw "target pane ${p} real process=$real 非 codex；先 locate 复核 pane<->agent 映射，禁止盲发（warn-and-continue 会把 prompt 发给错误 agent）"
 }
-# ② 发文本（-l 字面量防截断）-> ③ 单独 Enter 提交 -> ④ capture 验证 prompt 已离开输入框：
+# [2] 发文本（-l 字面量防截断）-> [3] 单独 Enter 提交 -> [4] capture 验证 prompt 已离开输入框：
 rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- '<ascii-prompt>'
 rmux send-keys -t $p -- Enter
 rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入框 -> Enter 被吞，单独重发 Enter
@@ -157,7 +186,7 @@ rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入�
   `references/troubleshooting.md`「send-keys / 输入」。
 - 中文乱码：prompt 用 ASCII（通篇英文），含空格用 `-l` 字面量或拆 token + `Space`。
 - 等待：`--wait quiet|--wait-text|--wait-next-text|--wait-visible-text|--wait-pane-exit` + `--stable-for` + `--timeout`。
-- **`--wait quiet` 超时 ≠ 未发送**（指令可能已入输入框待提交）：**此时严禁重发同一条 prompt**
+- **`--wait quiet` 超时 != 未发送**（指令可能已入输入框待提交）：**此时严禁重发同一条 prompt**
   （会排队两次执行两遍）；按上面 capture 验证只补 Enter，若已排队多份先 `C-c` 清队列。详见
   `references/troubleshooting.md`。
 
@@ -179,13 +208,13 @@ review 结论等**超过一屏的产物会永久丢**。可靠做法是让 agent
 ```powershell
 # 1. 指示 agent 把产物写到工作区某个路径（prompt 用 ASCII；文件用绝对路径）
 $targetName = 'kimi'   # 目标 agent 名（须与 $p 对应；下面诊断按它读 AGENT_STATE_<name>）
-$writePrompt = 'Write your full review to D:\win-rmux\reviews\review-kimi.md (markdown). Set-Content -Path D:\win-rmux\reviews\review-kimi.md -Value (content). Reply "WRITTEN" when done.'
+$writePrompt = 'Write your full review to D:\win-rmux\.rmux_tasks\<task-id>\review\review-kimi.md (markdown). Set-Content -Path D:\win-rmux\.rmux_tasks\<task-id>\review\review-kimi.md -Value (content). Reply "WRITTEN" when done.'
 rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- $writePrompt
 rmux send-keys -t $p -- Enter
 # 2. 轮询文件出现（judge 状态回 idle 或文件存在）；加超时上限防永久挂起
 $deadline = (Get-Date).AddMinutes(3)
-while (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md') -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 15 }
-if (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) {
+while (-not (Test-Path 'D:\win-rmux\.rmux_tasks\<task-id>\review\review-kimi.md') -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 15 }
+if (-not (Test-Path 'D:\win-rmux\.rmux_tasks\<task-id>\review\review-kimi.md')) {
   Write-Warning "文件超时未出现：capture=$((rmux capture-pane -t $p -p 2>$null) -join ' ') state=$(rmux show-environment -t $unit "AGENT_STATE_$targetName" 2>$null)"
 }
 # 3. 直接读文件内容（不经 rmux，产物完整持久）
@@ -194,7 +223,7 @@ if (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) {
 - agent 写入用 `Set-Content`（pwsh，符合环境约束）；写错时目录要先 `New-Item -ItemType Directory -Force`。
 - 备屏 TUI 的当前帧 capture 仍可读到少量尾部（判定完成用 hook 状态 `idle` 或文件存在，更稳）。
 - 发送指令时若 pane 仍 `working`，`--wait quiet` 会超时（send-keys 报 timed out）；
-  **超时 ≠ 未发送**，处置见上文「drive：给指定 agent 发 prompt（严格流程）」步骤 4：先查
+  **超时 != 未发送**，处置见上文「drive：给指定 agent 发 prompt（严格流程）」步骤 [4]：先查
   queued messages，不要盲目补发（补发可能造成重复排队执行两遍）。
 
 ## judge：判断 agent 状态 / 是否已提交
