@@ -16,6 +16,7 @@
 | 三个 pane 都是错误目录 | launcher 内 `-c $wd` 拿到 USERPROFILE（`$wd` 未正确传） | 确认 wt 用了 `-d $wd`，且 launcher 在 `$wd` 目录下以 `-File` 运行 |
 | wt 标签一闪即关、无报错 | launcher 失败即退出 | 把 launcher 输出重定向到日志文件再读，或脚本尾部加暂停 |
 | agent pane 缺 DEEPSEEK_API_KEY 等环境变量 | launcher body 没 dot-source `refresh-user-env.ps1` | launch 前必须先跑一次前置守卫（含 user-env 同步 + hook 安装）；launcher 只含环境守卫 PATH/NO_COLOR/TERM |
+| 误判「daemon 里没有 API key」 | `rmux show-environment` 只显示**显式 `set-environment`** 的项，不显示默认继承的进程环境变量 | 要用临时 probe pane（`split-window` + `pwsh -Command "$env:DEEPSEEK_API_KEY.Length"`）验证 agent 实际环境，别用 `show-environment` 判断；探针用完 `kill-pane` 清掉 |
 
 ## 二、drive 相关
 
@@ -24,6 +25,7 @@
 | 发了 prompt 但 agent 没动 | Enter 被吞（文本+Enter 同发、或时序被忽略） | `capture-pane` 看输入框；仍停留则单独重发 `Enter` |
 | capture 见 `❯ Press up to edit queued messages` | 之前重发导致同一 prompt 排队两次 | 先 `C-c` 清队列只发一次；**勿盲补发**（会执行两遍） |
 | `--wait quiet` 报 timed out | pane 仍 `working`（TUI 实际已就绪），指令可能已入输入框待提交 | **超时 ≠ 未发送**，勿重发同 prompt；`capture` 验证后只补 `Enter` |
+| prompt 发进了**错误的 agent**（目标 pane 身份与预期不符） | `display-message '#{pane_current_command}'`/`list-panes` 对 TUI agent **不可靠**：会报错/滞后，甚至把 kimi 的 pane 标成 codex；按 pane 索引（`0.$i`）发键随后悔 | ① 启动后用 `pane_pid` 反查**真实进程名**定位（`Get-CimInstance Win32_Process -Filter "ProcessId=$pid"`），别信 `pane_current_command`；② 每 pane 发键前 `capture` 确认屏内是目标 agent；③ 布局/pane 变动后重查身份，勿沿用旧索引。（2026-08-21 实测） |
 | 长 prompt 发送后不完整 / 被截断 / 排队 | send-keys 长文本不可靠（超长被打断入队） | 完整指令写文件（如 `.rmux_tasks/<task>/prompt.md`），`drive` 一条短指令 `Read <prompt路径> and follow it exactly` |
 | 找不到 agent 产生的产物文件 | 轮询了固定/旧文件名，命中上轮旧内容或遗漏本轮 | 用轮次前缀命名（`r<N>-<agent>.md`），或每轮 drive 前先清本 task 旧产物；轮询比对 `LastWriteTime` 晚于本轮 drive |
 | 补发 `Enter` 也不提交 | 可能 C-c 已把 prompt 清掉，或输入框状态异常 | `capture` 看输入框内容再决定；不要连发键 |
@@ -56,6 +58,7 @@
 | `C-m` 不提交，成字面量 `^M` | 回车键名只有 `Enter` 有效 | 用 `Enter`；不要用 `C-m` |
 | 把键注入错误 pane | `send-keys` 目标写错 | 发送前 `find-panes` 确认目标 pane |
 | `C-c` 连按两次退出 claude 会话 | Claude Code 的 C-c 连按=退出 | **`C-c` 只发一次**；清输入队列单次，不生效先 `capture` 确认再决定。「C-c 只清未提交不打断思考」是 claude 实测；其他 TUI（尤其 kimi）Ctrl+C 可能中断运行 |
+| **codex pane 单次 `C-c` 就整个退出（进程消失、pane 消失）** | codex（`--no-alt-screen`）把单次 `C-c` 解释为「退出应用」而非「清输入框」；kimi/claude 则容忍 | **drive 前严禁对 codex pane 发 `C-c` 预清**；改用「直接发文本→`Enter`→capture 验证」即可。（2026-08-21 实测：三次「codex 崩溃」全因 drive 前的 `C-c` 预清；去掉后再无崩溃） |
 | tiny CLI 报 `can't find pane` | `rmux.exe` tiny 分发器对部分目标解析失败 | 设 `RMUX_DISABLE_TINY_CLI=1` 走 full helper |
 | send-keys 提示 pane 不存在 | 目标 pane 已关闭/换位 | `list-panes` / `find-panes` 复查当前 pane id |
 

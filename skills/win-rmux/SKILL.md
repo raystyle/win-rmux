@@ -1,7 +1,12 @@
 ---
 name: win-rmux
-description: 在 Windows/pwsh 用 RMUX 把 codex/kimi/claude（可扩展 pi/grok）放进一个「执行单元」同一终端多窗格里前台/后台远程驱动：launch/locate/drive/observe/judge/recover-close 六原语 + research（研究→报告+POC）与 review-cycle（评审→修改→复核循环到一致）两任务原语，上2下1 布局，yolo 免交互启动，send-keys/capture-pane，环境守卫。
-compatibility: Windows 10/11 + PowerShell 7 + rmux（PATH 内）+ Windows Terminal（wt）
+description: >-
+  Drive codex/kimi/claude (extensible to pi/grok) as panes in one rmux session on
+  Windows/pwsh using launch/locate/drive/observe/judge/recover-close primitives,
+  plus the research and review-cycle task workflows, in a two-over-one layout.
+  Use when coordinating multiple terminal agents inside a single execution unit
+  (one visible Windows Terminal or a headless daemon).
+compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
 ---
 
 # win-rmux：一个执行单元里的多 agent 远程驱动
@@ -19,10 +24,23 @@ compatibility: Windows 10/11 + PowerShell 7 + rmux（PATH 内）+ Windows Termin
 - **六原语**：launch / locate / drive / observe / judge / recover·close。
 - 寻址按 agent 名，不硬编码 pane 索引；未来加 pi/grok 只改 `$agents`。
 
+## Quick start（端到端最小路径）
+
+```powershell
+# 1. 跑前置守卫（见下，含 refresh-user-env 与 hook 安装；关键：让 agent 有 API key）
+# 2. launch：弹 wt 建执行单元（三 agent 上 2 下 1）
+# 3. locate：rmux list-panes -t $unit -F '#{window_index}.#{pane_index} #{pane_current_command}'
+# 4. drive：给目标 agent 发提示（两段式：文本 -l → Enter → capture 验证提交，见 drive）
+# 5. observe/judge：轮询产物文件或 AGENT_STATE_<name> 判 idle
+# 6. 收尾：kill-session -t $unit（默认 scoped 关闭；勿随手 kill-server）
+```
+
+> 想跳过注册表/逐原语读完全文，先从上面 6 步跑通最小场景；详细步骤见各原语小节。
+
 ## Agent 注册表（当前 3，可扩展）
 
 ```powershell
-$unit    = 'execution-unit'    # 执行单元（Execution Unit）名，可覆盖
+$unit    = 'execution-unit'    # 执行单元名，**并行/多任务时请改成唯一名**（如 'res'/'review' 或按 task-id）；同名会话会被 launcher 复用/冲突
 $Visible = $true     # 前台；$false = 后台
 
 $agents = @(
@@ -39,11 +57,16 @@ $agents = @(
 
 ```powershell
 # 指定本 skill 安装目录（脚本内联执行时 $PSScriptRoot 为空，必须显式给出）。
-# 例：C:\Users\<user>\.claude\skills\win-rmux（Claude）、~\.codex\skills\win-rmux（Codex）等
-$SkillDir = 'C:\Users\ray\.claude\skills\win-rmux'   # ← 按本机安装路径填
+# 例：C:\Users\<user>\.claude\skills\win-rmux（Claude）、~\.codex\skills\win-rmux（Codex）、
+#     ~\.config\agents\skills\win-rmux（kimi-cli，gh skill）等。请替换为你的实际安装路径。
+$SkillDir = '<SKILL_INSTALL_DIR>'   # ← 必填：用本机安装路径替换此占位符
 $env:RMUX_DISABLE_TINY_CLI = '1'   # 探针/操作统一走 full helper，规避 tiny CLI 误报（防止空报误触发 kill-server）
 if (Get-Process rmux -ErrorAction SilentlyContinue) {
-  if (-not (rmux list-sessions 2>$null)) { rmux kill-server }   # 污染 daemon 守卫
+  # 污染 daemon 守卫：仅在「rmux 进程在且 list-sessions 明确成功返回空」时 kill-server。
+  # 若 list-sessions 查询失败（exit 非 0，daemon 可能刚启动/不可用）则**不 kill**，避免误杀正在用的 daemon。
+  $s = rmux list-sessions 2>$null; $rc = $LASTEXITCODE
+  if ($rc -eq 0) { $has = $s -match '\S' } else { $has = $true }   # 查询成功且无任何会话 = 真无进程
+  if (-not $has) { rmux kill-server }
 }
 Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 $env:TERM = 'xterm-256color'; $env:COLORTERM = 'truecolor'
@@ -52,8 +75,15 @@ $mu = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environme
 $env:Path = (($mu -split ';') + ($env:Path -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
 # User 环境变量同步（宿主常不加载 User env，agent 会缺 DEEPSEEK_API_KEY 等 API key；
 # 必须 dot-source，子进程调用无效）
+# ⚠ 该脚本会把 **全部** User 作用域变量（含其中存储的所有密钥/凭据）拷贝进本会话，进而被下方
+#   免审批/免沙箱 agent 读到。若计划对不可信输入跑 research，建议改成只放行 agent 实际需要的 key
+#   （如 DEEPSEEK_API_KEY / ANTHROPIC_API_KEY / GITHUB_TOKEN）。allowlist 参考实现见该项目研究产物的
+#   `.rmux_tasks/skill-review/research/poc-claude/hardened-guard.ps1`（非随 skill 分发，可在各自项目里自建）。
 . "$SkillDir/scripts/refresh-user-env.ps1"
-# agent 状态 hook 检测/安装（幂等 + 路径感知；首次会写 codex/kimi/claude 的 hook 配置）
+# agent 状态 hook 检测/安装（幂等 + 路径感知）。⚠ 首次运行会**改写全局** agent 配置
+# （~/.codex/hooks.json & config.toml、~/.claude/settings.json、~/.kimi-code/config.toml），影响以后
+# 所有会话（每个 codex/kimi/claude 事件都会起一次 pwsh 上报状态）。回滚：restore 安装器旁边生成的
+# `*.bak-<时间戳>`，或删掉其中的 win-rmux hook 项；不需要可注释本行——judge 回退到进程/capture 判活。
 pwsh -NoProfile -File "$SkillDir/scripts/install-agent-hooks.ps1"
 ```
 
@@ -106,17 +136,24 @@ function Get-AgentPane([string]$name) {
   "${unit}:0.$i"
 }
 $p = Get-AgentPane 'codex'
-# 目标 pane 校验（display-message 按单一 pane 解析；list-panes -t <sess>:0.0 是 window 作用域会误报）
-if ((rmux display-message -p -t $p -F '#{pane_current_command}' 2>$null) -notmatch 'codex') {
-  Write-Warning "target pane $p cmd 非 codex，先 locate 确认再 drive（禁止盲发）"
+# ① 目标 pane 校验：用 pane_pid 反查**真实进程名**（display-message '#{pane_current_command}' 对 TUI agent 不可靠，
+#    可能把 kimi 标成 codex——见 references/troubleshooting.md「二、drive 相关」）；不匹配即 **throw 中止发送**。
+#    注：假设 agent 是 pane 的直接进程；若经 pwsh/cli 包装启动，需再向下解析子进程 PID。
+$pp = rmux display-message -p -t $p -F '#{pane_pid}' 2>$null
+$real = (Get-CimInstance Win32_Process -Filter "ProcessId=$pp" -ErrorAction SilentlyContinue).Name
+if ($real -notmatch 'codex') {
+  throw "target pane ${p} real process=$real 非 codex；先 locate 复核 pane↔agent 映射，禁止盲发（warn-and-continue 会把 prompt 发给错误 agent）"
 }
-# 发文本（-l 字面量防截断）→ 单独 Enter 提交 → 必须 capture 验证 prompt 已离开输入框：
+# ② 发文本（-l 字面量防截断）→ ③ 单独 Enter 提交 → ④ capture 验证 prompt 已离开输入框：
 rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- '<ascii-prompt>'
 rmux send-keys -t $p -- Enter
 rmux capture-pane -t $p -p   # 若见 `up to edit queued` / prompt 仍在输入框 → Enter 被吞，单独重发 Enter
 ```
 
 - 回车只有 `Enter`；`C-m` 是字面量 `^M`。**Enter 必须单独一次 send-keys 发**（与文本同发实测不提交）。
+- **严禁对 codex pane 发 `C-c`**：codex（`--no-alt-screen`）把单次 `C-c` 解释为「退出应用」，进程与 pane 会整个消失
+  （kimi/claude 则容忍 `C-c`）。drive 前**不要**用 `C-c` 预清 codex 输入框；队列需要清时也只对 kimi/claude 用。详见
+  `references/troubleshooting.md`「send-keys / 输入」。
 - 中文乱码：prompt 用 ASCII（通篇英文），含空格用 `-l` 字面量或拆 token + `Space`。
 - 等待：`--wait quiet|--wait-text|--wait-next-text|--wait-visible-text|--wait-pane-exit` + `--stable-for` + `--timeout`。
 - **`--wait quiet` 超时 ≠ 未发送**（指令可能已入输入框待提交）——**此时严禁重发同一条 prompt**
@@ -176,12 +213,13 @@ rmux show-environment -t $unit AGENT_STATE_codex   # idle | working | blocked（
   常驻低增量，会误报「未提交」→ 触发重发 → 重复排队），只作辅助：
 
 ```powershell
-$before = (Get-Process claude -ErrorAction SilentlyContinue).CPU
+$before = ((Get-Process claude -ErrorAction SilentlyContinue) | Measure-Object CPU -Sum).Sum
 # 同样走两段式：先文本(-l)再单独 Enter，与 drive 规则一致
 rmux send-keys -t (Get-AgentPane 'claude') -l -- 'prompt'
 rmux send-keys -t (Get-AgentPane 'claude') -- Enter
 Start-Sleep -Seconds 2
-$after = (Get-Process claude -ErrorAction SilentlyContinue).CPU
+$after = ((Get-Process claude -ErrorAction SilentlyContinue) | Measure-Object CPU -Sum).Sum
+# 注：多 instance 时 CPU 是数组，必须 -Sum 聚合成标量再做 -gt 比较（2026-08-21 研究 review 指出）
 if ($after - $before -gt 0.5) { 'submitted' }
 ```
 
@@ -196,9 +234,11 @@ $wtArgs = "-w new --title `"$unit`" -d `"$wd`" pwsh -NoProfile -Command `"rmux a
 Start-Process -FilePath (Get-Command wt.exe).Source -ArgumentList $wtArgs -WindowStyle Minimized
 # 不 new-session -A、不 kill-server
 
-# close
-rmux kill-session -t $unit     # 关执行单元
-rmux kill-server               # 全关（杀 daemon 及所有 agent）
+# close：默认只关**本执行单元**（scoped），不要顺手杀 daemon 上别人/其它任务的会话
+rmux kill-session -t $unit     # 关执行单元（推荐默认；其它会话/daemon 保留）
+# ⚠ kill-server 是**最后手段**：它杀掉本机 daemon 上的**全部会话**（含用户其它工具 / 并行任务）。
+#   仅当确认这台 host 的 rmux daemon 只属于本 skill 且无其它保留会话时才用；常驻开发用 kill-session 即可。
+# rmux kill-server               # 全关（谨慎：会杀掉整台机器上所有 rmux 会话）
 ```
 
 ## 三 agent yolo / 去交互（--help + gh 源码已印证）
@@ -212,6 +252,13 @@ rmux kill-server               # 全关（杀 daemon 及所有 agent）
 - 首选启动即免交互；若仍阻塞：kimi 发 `/yolo on` + `Enter`；codex/claude 审批键通常 `y`/`n`。
 - one-shot 非交互：`codex exec '<p>'` / `claude -p '<p>'` / `kimi -p '<p>'`（kimi `-p` 不能与 `-y` 组合）。
 
+> ⚠ **blast-radius 警告**：上表 yolo 参数全部禁用 agent 的**审批与沙箱**（`--dangerously-bypass-approvals-and-sandbox`、
+> `--dangerously-skip-permissions` 等），agent 可直接执行命令/落盘/访问密钥。research/review 会把这些 agent 推向
+> **不可信输入**（web/gh 搜索、第三方 prompt、他人 review 内容）。二者叠加 = prompt 注入即可在主机以你的身份执行任意操作。
+> - 只对**你信任的输入**、在自己熟悉的工作区运行本 skill；从不驱动这些 pane 处理来源不可信的 web/gh 内容而不复查。
+> - 产物（尤其 POC/脚本）先人工审查再执行；敏感任务建议在隔离环境里跑。
+> - 这些 flag 是 skill 的**用法要点**，保留即可，但务必清楚上面的风险（2026-08-21 三 agent 研究 review 共识）。
+
 ## 任务原语（在六原语之上组合的两个工作流）
 
 > 六原语（launch/locate/drive/observe/judge/recover-close）是单步原子操作；**任务原语**是
@@ -222,14 +269,15 @@ rmux kill-server               # 全关（杀 daemon 及所有 agent）
 
 适用：根据需求做信息搜索、代码研究（含用 `gh` 搜 GitHub 代码），得出可用结论 + 最小可跑原型。
 
-```text
-主窗口                             agent（一个或多个 pane）
-  │  drive: 研究 prompt（需求/搜索方向/产物路径）  │
-  │ ───────────────────────────────────────────────▶│  搜索信息 + gh search code/api 研究
-  │                                                 │  └→ 写 .rmux_tasks/<task-id>/research/research-<topic>.md
-  │   observe/judge: 轮询产物文件出现               │     + .rmux_tasks/<task-id>/research/poc-<topic>/ 最小原型
-  │ ◀—— 读 .rmux_tasks/<task-id>/research/ 产物 ────│
-  │  审阅研究报告 + 跑 POC 验证
+```mermaid
+graph LR
+  H[Host / main window]
+  A[Agent pane]
+  F[.rmux_tasks/task-id/research/]
+  H -- "1 drive: research prompt (needs / targets / path)" --> A
+  A -- "2 search + gh research, then write artifacts" --> F
+  H -- "3 observe/judge: poll for artifacts" --> F
+  H -- "4 read report + run POC" --> F
 ```
 
 要点：
@@ -242,20 +290,16 @@ rmux kill-server               # 全关（杀 daemon 及所有 agent）
 
 适用：审阅一批代码改动，让多 agent 独立评审 → 主窗口按报告改代码 → 再复核 → 直到三方一致无必改项。
 
-```text
-主窗口                              agent codex/kimi/claude
-  │  待审代码改动（工作区/某提交）                     │
-  │  drive 每 agent: review prompt（写 review-<agent>.md）│
-  │ ────────────────────────────────────────────────▶│  独立评审 → 写 .rmux_tasks/<task-id>/review/review-<agent>.md
-  │ ◀── 读 review-codex/kimi/claude.md ──────────────│
-  │ 综合三份报告 → 按报告修改代码                     │
-  │  drive 每 agent: recheck prompt（写 r<N>-recheck-<agent>.md）│
-  │ ────────────────────────────────────────────────▶│  复核上轮修复 → 写 .rmux_tasks/<task-id>/recheck/<round>/
-  │ ◀── 读 r<N>-recheck-<agent>.md ──────────────────│        r<N>-recheck-<agent>.md
-  │ 三份 recheck 都以 AGREE: 开头（无 must-fix）？──否──▶(改代码→round+1 再 recheck 循环)  │
-  │          │是（一致达成）                          │
-  │          ▼                                        │
-  └── 循环终态：达成一致。循环中不关单元，终态才 close/recover
+```mermaid
+graph TD
+  S["code changes to review (worktree / commit)"] --> R["drive each agent: review prompt"]
+  R --> RV["agents write review-&lt;agent&gt;.md"]
+  RV --> M["combine 3 reports -> fix code"]
+  M --> RC["drive each agent: recheck prompt"]
+  RC --> RC2["agents write r&lt;N&gt;-recheck-&lt;agent&gt;.md"]
+  RC2 --> Q{"all recheck start with AGREE: ?"}
+  Q -- "no: fix + round+1" --> M
+  Q -- "yes: consistent" --> DONE["close / recover"]
 ```
 
 要点：
