@@ -16,6 +16,7 @@
 | 三个 pane 都是错误目录 | launcher 内 `-c $wd` 拿到 USERPROFILE（`$wd` 未正确传） | 确认 wt 用了 `-d $wd`，且 launcher 在 `$wd` 目录下以 `-File` 运行 |
 | wt 标签一闪即关、无报错 | launcher 失败即退出 | 把 launcher 输出重定向到日志文件再读，或脚本尾部加暂停 |
 | agent pane 缺 DEEPSEEK_API_KEY 等环境变量 | launcher body 没 dot-source `refresh-user-env.ps1` | launch 前必须先跑一次前置守卫（含 user-env 同步 + hook 安装）；launcher 只含环境守卫 PATH/NO_COLOR/TERM |
+| 守卫跑了、agent 仍缺 DEEPSEEK_API_KEY | **守卫与 launch 被拆成两个独立 pwsh 进程**（如两个 bash 调用）：`refresh-user-env` 是 dot-source 注入当前进程，进程退出即失效；`Start-Process wt` 只继承当前进程环境，拿不到另一个进程里 refresh 的 key | **守卫（dot-source refresh）与 launch（Start-Process wt）必须在同一个 pwsh 进程内连续执行**；或把 `. refresh-user-env` 放进 launcher 脚本头部让 wt 内进程自己 refresh |
 | 误判「daemon 里没有 API key」 | `rmux show-environment` 只显示**显式 `set-environment`** 的项，不显示默认继承的进程环境变量 | 要用临时 probe pane（`split-window` + `pwsh -Command "$env:DEEPSEEK_API_KEY.Length"`）验证 agent 实际环境，别用 `show-environment` 判断；探针用完 `kill-pane` 清掉 |
 
 ## 二、drive 相关

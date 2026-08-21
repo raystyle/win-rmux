@@ -145,6 +145,11 @@ rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane
   报 `os error 5` 则回退 wt 启动。
 - launcher body 只含环境守卫（PATH/NO_COLOR/TERM），**用户 env 同步与 hook 安装仍要先跑一次
   前置守卫**（否则 agent 缺 API key、judge 无 hook 状态）。
+- **守卫与 launch 必须在「同一个 pwsh 进程」内连续执行**：`refresh-user-env` 是
+  `dot-source` 注入**当前进程**环境，进程一退出就失效；`Start-Process wt` 继承的是**当前
+  进程的环境**。若把守卫和 launch 拆成两个独立进程（如两个 bash 调用），refresh 的结果会丢失，
+  wt -> launcher -> codex 全链缺 `DEEPSEEK_API_KEY` 等 key。要么同一脚本里先 `. refresh-user-env`
+  再 `Start-Process wt`，要么把 `. refresh-user-env` 放进 launcher 脚本（见 rmux-usage.md）。
 
 ## locate：agent <-> pane 映射
 
