@@ -296,11 +296,11 @@ rmux kill-session -t $unit     # 关执行单元（推荐默认；其它会话/d
 > - 产物（尤其 POC/脚本）先人工审查再执行；敏感任务建议在隔离环境里跑。
 > - 这些 flag 是 skill 的**用法要点**，保留即可，但务必清楚上面的风险（2026-08-21 三 agent 研究 review 共识）。
 
-## 任务原语（在六原语之上组合的两个工作流）
+## 任务原语（在六原语之上组合的标准工作流）
 
 > 六原语（launch/locate/drive/observe/judge/recover-close）是单步原子操作；**任务原语**是
-> 面向两类实际任务的标准工作流，复用六原语自动推进。详细实现、产物规范、循环条件见
-> `references/task-workflows.md`。
+> 面向实际任务的标准工作流（research / review-cycle / 快速 review），复用六原语自动推进。
+> 详细实现、产物规范、循环条件见 `references/task-workflows.md`。
 
 ### research：研究任务（产研究报告 + 最小原型 POC）
 
@@ -347,6 +347,13 @@ graph TD
 - 循环退出条件：**三方 `recheck` 都以 `AGREE:` 开头**（= 无 must-fix）；设最大轮数防死循环。
 - review prompt 需内置「跳过凭据/密钥文件」（见 troubleshooting「agent 行为」）；
 - 长 prompt 避免 send-keys 截断：把完整指令写文件让 agent Read（见 troubleshooting「drive 相关」）。
+
+### 快速 review：单 agent 轻量变体（一轮即止）
+
+适用：小改动/单文件/单提交快速把关，不想开满 3 个 agent 跑完整 review-cycle。只用一个
+agent（默认 codex）、一轮 review、无 recheck 循环、无"三方一致"判定；意见由主窗口自行判断
+采纳。产物仍落 `.rmux_tasks/<task-id>/review/review-<agent>.md`，复用 review-cycle 的首轮
+prompt 模板。详见 `references/task-workflows.md` 2.5。
 
 ## 关键踩坑
 

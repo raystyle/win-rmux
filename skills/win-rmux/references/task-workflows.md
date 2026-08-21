@@ -157,6 +157,30 @@ Skip secret/credential files.
 - **不关单元**：循环中不要 `kill-session`：那会丢所有 agent 上下文；只有终态达成(一致的
   无需再改)才 close。
 
+### 2.5 快速 review（单 agent 轻量变体）
+
+> 何时用：小改动快速把关、单文件/单提交 diff、只想快速拿一份 review，不值得开满 3 个 agent
+> 跑完整 review-cycle。用 **1 个 agent、单轮、无 recheck 循环**；拿到的意见由主窗口自行判断
+> 采纳，不追求"三方一致"。
+
+```text
+1. guard（前置守卫，同 review-cycle）+ launch 单 pane：会话名 rs-<task-id>（或单 agent 变体），
+   只建 1 个 pane（默认 codex，--no-alt-screen 便于 capture/observe；可按需换 kimi/claude）
+2. 写好指令文件 .rmux_tasks/<task-id>/review/prompt.md（同 2.3 首轮模板，把
+   review-<agent>.md 收敛为单一 review-codex.md）
+3. drive 一条短指令："Read .rmux_tasks/<task-id>/review/prompt.md and write your verdict to
+   .rmux_tasks/<task-id>/review/review-<agent>.md"
+4. observe/judge 轮询单一 review 文件出现 -> 读文件（不经 rmux，备屏完整）
+5. 主窗口自行判断采纳哪些 must-fix -> 改代码 -> close（不跑 recheck 循环）
+```
+
+- 与完整 review-cycle 的区别：**单一 agent、单一轮次、无 AGREE 三方判定、无 recheck**；
+  只在"意见只作参考、改不改由主窗口自己定"的场景用。
+- 产物仍落 `.rmux_tasks/<task-id>/review/`，命名 review-<agent>.md（单文件）；不要用
+  `r<N>-recheck` 前缀（那是循环专属）。
+- 单 pane 启动时 launcher 只跑 `new-session` 一个 agent（不 `split-window`），或六原语里
+  的 `launch` 单 agent 变体（见 rmux-usage.md 单 agent 建会话）。
+
 ## 3. 产物目录约定（标准，严格）
 
 所有项目和任务产物统一归档在 **项目根 `.rmux_tasks/`** 下，按**任务 id** 分层，每个任务一个
