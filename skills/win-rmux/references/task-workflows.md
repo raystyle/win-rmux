@@ -1,12 +1,13 @@
-# win-rmux 任务原语详细实现（research / review-cycle）
+# win-rmux 任务原语详细实现（research / review-cycle / 快速 review）
 
-> 主 SKILL「任务原语」段只有概览；本文件是两种任务工作流的**完整实现**：驱动步骤、prompt
-> 模板、产物规范、循环退出条件、踩坑。踩坑的"排查"统一见 `troubleshooting.md`（唯一坑维护
-> 点），本文只给"怎么把任务跑起来"的标准步骤 + 必要提示。异常排查去 troubleshooting。
+> 主 SKILL「任务原语」段只有概览；本文件是三类任务工作流的**完整实现**（research /
+> review-cycle / 快速 review 单 agent 变体）：驱动步骤、prompt 模板、产物规范、循环退出条件、
+> 踩坑。踩坑的"排查"统一见 `troubleshooting.md`（唯一坑维护点），本文只给"怎么把任务跑起来"
+> 的标准步骤 + 必要提示。异常排查去 troubleshooting。
 
 ## 0. 前置
 
-两种任务都先走六原语：`launch`（建执行单元，上 2 下 1：codex/kimi/claude）-> `locate`
+三类任务都先走六原语：`launch`（建执行单元，上 2 下 1：codex/kimi/claude）-> `locate`
 复核 pane -> 需要时 `recover` 弹前台看板。产物走**写文件**（备屏 TUI 完整帧不可从外部
 读，长产物永久丢，见 troubleshooting「TUI 备屏」）。
 
@@ -164,13 +165,15 @@ Skip secret/credential files.
 > 采纳，不追求"三方一致"。
 
 ```text
-1. guard（前置守卫，同 review-cycle）+ launch 单 pane：会话名 rs-<task-id>（或单 agent 变体），
-   只建 1 个 pane（默认 codex，--no-alt-screen 便于 capture/observe；可按需换 kimi/claude）
-2. 写好指令文件 .rmux_tasks/<task-id>/review/prompt.md（同 2.3 首轮模板，把
-   review-<agent>.md 收敛为单一 review-codex.md）
-3. drive 一条短指令："Read .rmux_tasks/<task-id>/review/prompt.md and write your verdict to
+1. guard（前置守卫，同 review-cycle）+ launch 单 pane：会话名 rv-<task-id>（review 任务用 rv- 前缀，
+   见 0.1 命名分类），只建 1 个 pane（默认 codex，--no-alt-screen 便于 capture/observe；可按需换 kimi/claude）
+2. 写好指令文件 .rmux_tasks/<task-id>/review/prompt.md（同 2.3 首轮模板；产物名固定
+   review-<agent>.md，<agent> 由 drive 短指令解析，与步骤 1 选的 agent 一致）
+3. drive 一条短指令（带 agent 名 resolver，勿让 agent 自己猜产物名）：
+   "You are <agent>. Read .rmux_tasks/<task-id>/review/prompt.md and write your verdict to
    .rmux_tasks/<task-id>/review/review-<agent>.md"
-4. observe/judge 轮询单一 review 文件出现 -> 读文件（不经 rmux，备屏完整）
+4. observe/judge 轮询单一 review 文件出现（固定 review-<agent>.md，如 review-codex.md）
+   -> 读文件（不经 rmux，备屏完整）
 5. 主窗口自行判断采纳哪些 must-fix -> 改代码 -> close（不跑 recheck 循环）
 ```
 
@@ -178,8 +181,8 @@ Skip secret/credential files.
   只在"意见只作参考、改不改由主窗口自己定"的场景用。
 - 产物仍落 `.rmux_tasks/<task-id>/review/`，命名 review-<agent>.md（单文件）；不要用
   `r<N>-recheck` 前缀（那是循环专属）。
-- 单 pane 启动时 launcher 只跑 `new-session` 一个 agent（不 `split-window`），或六原语里
-  的 `launch` 单 agent 变体（见 rmux-usage.md 单 agent 建会话）。
+- 单 pane 启动时 launcher 只跑 `new-session -d`（直接建，不带 `-A`——`-A` 会静默附加到同名
+  残留会话，正是环境探针要防的叠窗格）；不 `split-window`。
 
 ## 3. 产物目录约定（标准，严格）
 

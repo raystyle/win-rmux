@@ -4,7 +4,7 @@ license: MIT
 description: >-
   Drive codex/kimi/claude (extensible to pi/grok) as panes in one rmux session on
   Windows/pwsh using launch/locate/drive/observe/judge/recover-close primitives,
-  plus the research and review-cycle task workflows, in a two-over-one layout.
+  plus the research, review-cycle, and fast-review task workflows, in a two-over-one layout.
   Use when coordinating multiple terminal agents inside a single execution unit
   (one visible Windows Terminal or a headless daemon).
 compatibility: Windows 10/11, PowerShell 7, rmux on PATH, Windows Terminal (wt)
@@ -152,6 +152,9 @@ rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane
   进程的环境**。若把守卫和 launch 拆成两个独立进程（如两个 bash 调用），refresh 的结果会丢失，
   wt -> launcher -> codex 全链缺 `DEEPSEEK_API_KEY` 等 key。要么同一脚本里先 `. refresh-user-env`
   再 `Start-Process wt`，要么把 `. refresh-user-env` 放进 launcher 脚本（见 rmux-usage.md）。
+- 例外：**旧 daemon 已由无 key 的环境启动且仍在跑**时，新 pane 继承的是 daemon 环境而非
+  launcher 进程，上面的同进程 refresh 仍救不了。按「旧 daemon 污染守卫」处理：`list-sessions`
+  无保留会话时 `kill-server` 重建，或 `new-session` 时用 `-e DEEPSEEK_API_KEY=...` 显式注入。
 
 ## locate：agent <-> pane 映射
 
