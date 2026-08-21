@@ -1,8 +1,9 @@
 # win-rmux
 
-在 Windows/pwsh 用 RMUX 开新终端窗口，把多个 agent（Codex / Kimi / Claude Code）放到同一终端
-的不同窗格里运行与驱动：新终端 + 多窗格布局（上 2 下 1）、send-keys / capture-pane、
-环境清理（NO_COLOR / TERM / PATH）、agent 状态判断原语、关闭退出。
+一个 **Windows 多路智能体控制单元（Execution Unit）** Skill：在 Windows/pwsh 用 RMUX 开新终端
+窗口，把多个 agent（Codex / Kimi / Claude Code）放进同一个 rmux 会话的不同窗格里运行与驱动：
+新终端 + 多窗格布局（上 2 下 1）、send-keys / capture-pane、环境清理（NO_COLOR / TERM / PATH）、
+agent 状态判断原语、关闭退出。
 
 仓库源文件（目录结构 + 各文件作用）：
 
