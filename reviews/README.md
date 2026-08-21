@@ -12,6 +12,7 @@
 | 终审 | `final-*.md` ×3 | pane 校验改 display-message、写产物补 -l、轮询超时、[features] 正则——三端全 FINAL_OK |
 | 收敛裁决 | `converge-*.md` ×3 | 对 8 项非阻塞残留裁决：claude 7 ACCEPT + item7 REJECT；codex 6 FIX + 2 ACCEPT；kimi 8/8 FIX。item7（无效 JSON 覆盖）三方一致必修 |
 | 终态确认 | `signoff-*.md` ×3 | 收敛后 HEAD `cf2182e`：三端全员 `FINAL_AGREED`，无剩余正确性/损坏路径 |
+| 第 4 轮 | `r4-*.md` ×3 + `r4-prompt.md` | backlog（ohmypwsh 实战）反哺 win-rmux：launch/drive 重构 + 坑职责收敛到 troubleshooting.md。三端均抓出 `$wd` 未定义回归、`--wait quiet` 矛盾、spinner 词不可靠；全部已修 |
 
 ## 结果闭环（HEAD: cf2182e）
 
@@ -25,6 +26,12 @@
 - `01c19a9` fix: 复验回归修复
 - `cff6826` docs: 修正 [features] 幂等注释范围表述
 - `cf2182e` fix: 收敛终审残留
+
+**第 4 轮（HEAD: 3c6c9bc）** launch/drive 重构 + 坑收敛，共 3 提交：
+
+- `a3a59e2` fix: 第4轮三 agent review 收敛——drive 严格流程化 + 消除文档矛盾
+- `9b6602e` docs: 坑职责收敛到专门 troubleshooting.md（主 SKILL 只留原语+索引）
+- `3c6c9bc` docs: 归档第4轮 review + README 分轮表更新
 
 ## 关键结论（三端交叉印证）
 
