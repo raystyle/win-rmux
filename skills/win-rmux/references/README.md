@@ -13,10 +13,12 @@
 - [options.md](options.md) — 默认 server / window 选项与关键默认值
 - [web-share.md](web-share.md) — 浏览器远程共享与隧道（含「远程 SSH」结论）
 - [command-verification.md](command-verification.md) — 全量命令在真实 server 上的实测执行结果
-- [rmux-usage.md](rmux-usage.md) — 实测踩坑与操作原语研究（daemon 模型、ConPTY 备屏、关闭退出）
+- [rmux-usage.md](rmux-usage.md) — 操作原语研究 / 完整实现（launcher、drive 流程；daemon 模型、ConPTY 备屏、关闭退出）
+- [troubleshooting.md](troubleshooting.md) — **唯一踩坑/排障维护点**（现象 + 排查 + 处理速查表）
 
 快速入口：
 
 - 查某条命令的语法与别名 → `commands.md`，或直接 `rmux <command> --help`
 - 查 RMUX 独有能力（等待 / 查找 / 广播 / web 分享） → `extensions.md`
 - 驱动 agent、判断提交、处理 TUI 限制 → `rmux-usage.md`
+- 操作原语遇错（launch/drive/判活/send-keys 异常） → `troubleshooting.md`（唯一坑维护点）

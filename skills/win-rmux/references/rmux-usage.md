@@ -198,16 +198,95 @@ rmux capture-pane -t claude -p
 （cwd 错误）、TUI 窗格 capture-pane 返回空的内联提示、会话复用守卫、旧 daemon 守卫、
 list-clients 竞态等待、`--wait-text` 补齐、tiny CLI 结构说明、PATH 重建副作用注释。
 
-## 踩坑（实测沉淀）
+## 踩坑 / 排障
 
-1. **send-keys 目标**：`-t` 接受会话名 / `session:window.pane` / pane id（`%N`），payload 必须放在 `--` 之后，键名 `Enter`/`Down`/`Up`/`C-c`。
-2. **tiny CLI 误报「can't find pane」**：默认 `rmux.exe`（tiny 分发器）对部分目标解析失败；设 `RMUX_DISABLE_TINY_CLI=1` 走 full helper 可解（本次实测 `-t 1` 在 tiny 下报错、full helper 下 exit 0）。
-3. **`--wait` 本版本只支持 `quiet`**（`--wait-next-text`/`--wait-visible-text` 是独立参数，不是 `--wait` 的值）；等待必须配 `--timeout`，避免盲 sleep。
-4. **Windows ConPTY 备屏捕获限制**：Claude Code 等全屏 TUI 走 alternate screen，rmux 0.10 `capture-pane`/`pane-snapshot` 返回空（`capture-pane -a` 报 no alternate screen），无法从外部读取 TUI 渲染内容；键可发（`broadcast-keys`/`send-keys`），但输入通道对 TUI 窗格不稳定（偶发 `server closed connection before a complete response frame arrived`）。
-5. **`rmux claude`（teammate 模式）**：自动传 `--teammate-mode tmux` 并注入私有 tmux shim；内层会话 socket 每实例随机（`-L` 无法预知），外层命令看不到内层会话；TUI 内容同样不可捕获。调试建议改用 `claude -p`（纯文本可捕获）或让用户目视窗格。
-6. **发送键到未知窗格有副作用**：`send-keys` 目标错误会把键注入错误的 pane（实测曾把 echo 打进其他 agent 会话输入框）。发送前先 `find-panes` 确认目标。
-7. **中文输入经 send-keys 丢失/乱码**：对 Claude Code 窗格发中文 payload（如 `-- '只回复"连接正常"' Enter`）时输入框不显示内容，且产生 `server closed connection before a complete response frame arrived`（乱码字节打到 API）；同一窗格英文 payload 立即正常。驱动 claude 的 prompt 先用 ASCII/英文，或先 `claude -p` 走管道传中文。
-8. **回车键名只有 `Enter` 有效**：`C-m` 会被当字面量 `^M` 发送（实测 pwsh 输入框出现 `echo B^M` 未执行，而 `Enter` 正常提交输出）；发送后不要盲目连发 Enter/C-m。TUI agent（codex/claude/kimi）的完整帧 capture 为空（仅尾部少量状态行可读），提交判断优先用**尾部状态 busy/ready**（见 SKILL「关键踩坑」），进程 CPU 增长只作辅助——CPU 对 claude 深度思考阶段不可靠，会误报未提交进而触发重发/排队。
+> 踩坑与排障统一维护在 `troubleshooting.md`（唯一坑维护点），本文不承载坑内容；遇错去那查。此
+> 处仅保留实现与实测记录。
+
+## launch 完整实现与错误排查（主 SKILL 只留原语，细节在此）
+
+> 主 SKILL「launch」「drive」只保留操作原语与关键提示。下列是**完整实现 + 出错时对照排查**
+> 的一手记录；按主 SKILL 操作报错时，回到这里逐条排查。
+
+### launcher 脚本（wt 内启动独立 daemon）
+
+原因：CI/agent 宿主把命令包进 job object，`new-session -d` 启动独立 daemon 报 `os error 5`。
+wt 是 UWP，进程树脱离 job，把 launcher 放 wt 内跑即稳定。launcher 不含 `attach-session`
+（避免 wt 卡前台）。
+
+`launch-unit.ps1`（当前写入目录为 `$wd`）：
+
+```powershell
+$ErrorActionPreference = 'Continue'
+$env:RMUX_DISABLE_TINY_CLI = '1'
+Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
+$env:TERM = 'xterm-256color'; $env:COLORTERM = 'truecolor'
+$mu = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+$env:Path = (($mu -split ';') + ($env:Path -split ';') | Where-Object { $_ } | Select-Object -Unique) -join ';'
+
+$unit = 'execution-unit'   # 覆盖点：与调用方保持一致
+$wd   = (Get-Location).Path
+$agents = @(
+  @{ name = 'codex';  cmd = 'codex';  args = @('--dangerously-bypass-approvals-and-sandbox', '--dangerously-bypass-hook-trust', '--no-alt-screen') }
+  @{ name = 'kimi';   cmd = 'kimi';   args = @('--auto') }
+  @{ name = 'claude'; cmd = 'claude'; args = @('--dangerously-skip-permissions') }
+)
+if (@(rmux list-sessions -F '#{session_name}' 2>$null) -contains $unit) { rmux kill-session -t $unit }
+$argv = @('new-session','-d','-s',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=$unit",'-e',"WIN_RMUX_AGENT=$($agents[0].name)",$agents[0].cmd) + $agents[0].args
+& rmux @argv
+$argv = @('split-window','-h','-d','-t',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=$unit",'-e',"WIN_RMUX_AGENT=$($agents[1].name)",$agents[1].cmd) + $agents[1].args
+& rmux @argv
+$argv = @('split-window','-f','-v','-d','-t',$unit,'-c',$wd,'-e',"WIN_RMUX_UNIT=$unit",'-e',"WIN_RMUX_AGENT=$($agents[2].name)",$agents[2].cmd) + $agents[2].args
+& rmux @argv
+# 脚本结束即退出；daemon 由 wt 内 pwsh 与宿主解耦存活
+```
+
+宿主侧入口（弹 wt 跑 launcher，宿主等待后复核）：
+
+```powershell
+$wd = (Get-Location).Path   # host 侧 $wd 与 launcher 内是两份独立副本，两处都要给
+$wtArgs = "-w new --title `"$unit-launch`" -d `"$wd`" pwsh -NoProfile -ExecutionPolicy Bypass -File `"<launcher.ps1绝对路径>`""
+Start-Process (Get-Command wt.exe).Source -ArgumentList $wtArgs -WindowStyle Minimized
+Start-Sleep -Seconds 10
+rmux list-panes -t $unit -F "#{window_index}.#{pane_index} #{pane_id} cmd=#{pane_current_command}"
+```
+
+### launch 错误排查
+
+> 见 `troubleshooting.md`「launch 相关」表（唯一坑维护点）。
+
+### drive 严格流程（四步 + 提交确认）
+
+```powershell
+function Get-AgentPane([string]$name) {
+  $i = [array]::IndexOf($agents.name, $name)
+  if ($i -lt 0) { throw "unknown agent: $name" }
+  "${unit}:0.$i"
+}
+$p = Get-AgentPane 'codex'
+
+# 步骤 0 目标 pane 校验（display-message 按单一 pane 解析）
+if ((rmux display-message -p -t $p -F '#{pane_current_command}' 2>$null) -notmatch 'codex') { Write-Warning "target pane $p 非 codex，先 locate" }
+
+# 步骤 1 预发：确认输入框为空（capture 见 `up to edit queued|❯\s+\S` 则先 C-c 清排队）
+$pre = rmux capture-pane -t $p -p
+if ($pre -match 'up to edit queued|❯\s+\S') { rmux send-keys -t $p -- C-c; Start-Sleep -Milliseconds 500 }
+
+# 步骤 2 发文本（-l 字面量防截断）
+rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- '<ascii-prompt>'
+
+# 步骤 3 单独 Enter 提交（文本+Enter 同发会被吞）
+rmux send-keys -t $p -- Enter
+
+# 步骤 4 提交确认：验证 prompt 已离开输入框进入 agent（还在输入框则重发 Enter）
+Start-Sleep -Milliseconds 800
+$post = rmux capture-pane -t $p -p
+if ($post -match 'queued|❯\s+<ascii-prompt>|❯\s+R') { Write-Host '[!] prompt 未提交，重发 Enter'; rmux send-keys -t $p -- Enter }
+```
+
+### drive 错误排查
+
+> 见 `troubleshooting.md`「drive 相关」表（唯一坑维护点）。
 
 ## 与本项目的关系
 
