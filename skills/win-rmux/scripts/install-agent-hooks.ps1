@@ -128,11 +128,16 @@ function Enable-CodexHooksFeature {
   if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
   $marker = '# win-rmux: enable agent-state hooks'
   $content = if (Test-Path $path) { Get-Content -Raw $path } else { '' }
-  if ($content -and $content.Contains('hooks = true')) { Write-Host "[codex] config.toml hooks already enabled"; return }
+  # 幂等判断用「行首 hooks 键」正则而非子串 Contains（避免注释/他表里的 hooks 误判，
+  # 也避免 hooks=false 时误插入重复键）：仅当 [features] 表内已有 hooks 键（任意值）才视为已启用
+  $hooksLine = '(?m)^\s*hooks\s*=\s*'
+  if ($content -and $content -match $hooksLine) {
+    Write-Host "[codex] config.toml hooks already present"; return
+  }
   Write-Host "[codex] $path"
   Backup $path
   $newLine = "${marker}`nhooks = true`n"
-  if ($content -match '(?m)^\[features\]\s*$') {
+  if ($content -match '(?m)^[ \t]*\[features\]\s*$') {
     # 已有 [features] 表：在其表体末尾插入（表内除 hooks 外可能还有别的键），不追加重复表头
     $lines = $content -split "`r?`n"
     $out = New-Object System.Collections.Generic.List[string]

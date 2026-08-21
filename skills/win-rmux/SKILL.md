@@ -102,8 +102,9 @@ function Get-AgentPane([string]$name) {
   "${unit}:0.$i"
 }
 $p = Get-AgentPane 'codex'
-# 目标 pane 校验：确认当前启动命令即该 agent（防 respawn 重排/崩溃后错位）
-if ((rmux list-panes -t $p -F '#{pane_current_command}' 2>$null) -notmatch 'codex') {
+# 目标 pane 校验：display-message 按单一 pane 目标解析（list-panes -t <sess>:0.0 是 window 作用域，
+# 会返回整个 window 所有 pane 致误报；display-message 实测按 pane 精确解析）
+if ((rmux display-message -p -t $p -F '#{pane_current_command}' 2>$null) -notmatch 'codex') {
   Write-Warning "target pane $p cmd 非 codex，先 locate 确认再 drive"
 }
 # 先发文本、再单独发 Enter（实测 Enter 与文本同发会被吞，不提交）；
@@ -134,10 +135,14 @@ review 结论等**超过一屏的产物会永久丢**。可靠做法是让 agent
 ```powershell
 # 1. 指示 agent 把产物写到工作区某个路径（prompt 用 ASCII；文件用绝对路径）
 $writePrompt = 'Write your full review to D:\win-rmux\reviews\review-kimi.md (markdown). Set-Content -Path D:\win-rmux\reviews\review-kimi.md -Value (content). Reply "WRITTEN" when done.'
-rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -- $writePrompt
+rmux send-keys -t $p --wait quiet --stable-for 800ms --timeout 15s -l -- $writePrompt
 rmux send-keys -t $p -- Enter
-# 2. 轮询文件出现（judge 状态回 idle 或文件存在）
-while (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) { Start-Sleep -Seconds 15 }
+# 2. 轮询文件出现（judge 状态回 idle 或文件存在）；加超时上限防永久挂起
+$deadline = (Get-Date).AddMinutes(3)
+while (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md') -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 15 }
+if (-not (Test-Path 'D:\win-rmux\reviews\review-kimi.md')) {
+  Write-Warning "文件超时未出现：capture=$((rmux capture-pane -t $p -p 2>$null) -join ' ') state=$(rmux show-environment -t $unit AGENT_STATE_kimi 2>$null)"
+}
 # 3. 直接读文件内容（不经 rmux，产物完整持久）
 ```
 

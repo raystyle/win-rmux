@@ -60,7 +60,7 @@ rmux set-environment -t $env:WIN_RMUX_UNIT ("AGENT_STATE_" + $env:WIN_RMUX_AGENT
 
 ```powershell
 rmux show-environment -t $unit AGENT_STATE_codex
-# 输出为空/不存在 = 未上报；否则 idle | working | blocked
+# 输出为空/不存在 = 未上报；否则为 `AGENT_STATE_codex=idle|working|blocked`（注意带 KEY= 前缀，解析需去掉）
 ```
 
 ## 内置脚本
